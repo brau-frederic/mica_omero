@@ -5,6 +5,7 @@
 // This macro needs to send an image of the results an can give a table of results that could be linked to the image in Omero
 // Maxence Delannoy, Manon Carvalho, Clemence Belle GB5 students from Polytech Nice Sophia. 
 // Mentored project by C. Rovere and F. Brau (brau@ipmc.cnrs.fr) January 2020 
+// Script done from the Omero team groovy files
 
 import java.util.ArrayList
 import java.lang.StringBuffer
