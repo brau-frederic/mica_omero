@@ -1,6 +1,6 @@
 # mica_omero
 // Script Groovy to batch your local macro Fiji or ImageJ on a dataset of images in Omero
-// Connect to Omero, choose your group, project, dataset 
+// You have a connection to Omero, choose your group, project, dataset 
 // Execute your macro which is localy on your PC for all the images contained in the dataset
 // It imports your image localy and treats it with the macro.
 // This macro needs to send an image of the results an can give a table of results that could be linked to the image in Omero
