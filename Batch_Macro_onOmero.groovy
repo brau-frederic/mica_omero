@@ -8,6 +8,7 @@
 // Script done from the Omero team groovy files
 // https://github.com/ome/training-scripts/tree/master/practical/groovy
 
+
 import java.util.ArrayList
 import java.lang.StringBuffer
 import java.nio.ByteBuffer
@@ -47,6 +48,7 @@ import omero.gateway.model.ImageData
 import omero.gateway.model.ExperimenterData
 import omero.gateway.model.TableData
 import omero.gateway.model.TableDataColumn
+import omero.gateway.model.ROIData
 import omero.model.DatasetI
 import omero.model.ProjectI
 
@@ -84,8 +86,11 @@ import ij.process.ByteProcessor
 import ij.process.ShortProcessor
 import ij.plugin.frame.RoiManager
 import ij.measure.ResultsTable
+import ij.gui.Roi
+import ij.WindowManager
 
-// affichage
+
+// display
 import java.awt.*;
 import javax.swing.*;
 import java.text.NumberFormat;
@@ -126,7 +131,7 @@ public class Connexion extends JFrame {
 		super("Connection to Omero");
 		this.setSize(350,200);
 		//this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		this.setLocationRelativeTo(null); // centre la fenetre à l'écran 
+		this.setLocationRelativeTo(null); // center the window
 		///
 		cp.setLayout(new BoxLayout(cp,BoxLayout.PAGE_AXIS));
 		panelInfo.setLayout(new BoxLayout(panelInfo,BoxLayout.LINE_AXIS));
@@ -206,7 +211,7 @@ public class Getinfos extends JFrame {
 	private JComboBox groupList = new JComboBox();
 	private JLabel label_groupname = new JLabel();
 	
-	// choix des images d'entrées
+	// choices of input images
 	private JPanel panelInput = new JPanel();
 	private JPanel input1 = new JPanel(); 
 	private JPanel input2a = new JPanel(); 
@@ -216,64 +221,68 @@ public class Getinfos extends JFrame {
 	private ButtonGroup indata = new ButtonGroup();
 	private JRadioButton omero = new JRadioButton("Omero");
 	private JRadioButton local = new JRadioButton("Local");
-    	// choix du dataSet
+    	// choice of the dataSet
 	private JLabel label_projectin = new JLabel("Project Name: ");
 	private JComboBox projectListIn = new JComboBox();
 	private JLabel label_projectinname = new JLabel();
 	private JLabel label_datasetin = new JLabel("Dataset Name: ");
 	private JComboBox datasetListIn = new JComboBox();
 	private JLabel label_datasetinname = new JLabel();
-		// choix du dossier
+		// choice of the record
 	private JTextField inputfolder = new JTextField(20);
     private JButton inputfolder_btn = new JButton("Images directory");
-    //choix de la macro
+    //choice of the macro
     private JPanel panelMacro = new JPanel();
     private JPanel macro1 = new JPanel(); 
     private JPanel macro2 = new JPanel(); 
+	private JPanel macro3 = new JPanel(); 
+	private JPanel macro4 = new JPanel(); 
     private JTextField macro = new JTextField(20);
     private JButton macro_btn = new JButton("Macro file");
-    private JCheckBox checkresfile = new JCheckBox(" The macro returns a results file (other than images)");
-    // choix de la sortie
+	private JCheckBox checkresfile_ima = new JCheckBox(" The macro returns an image ");
+    private JCheckBox checkresfile_res = new JCheckBox(" The macro returns a results file (other than images)");
+	private JCheckBox checkresfile_roi = new JCheckBox(" The macro returns ROIs ");
+    // choice of output
     private JPanel panelOutput = new JPanel();
     private JPanel output1 = new JPanel(); 
     private JLabel label_extension = new JLabel("Suffix of output files :");
     private JTextField extension = new JTextField(10); 
-    	// en ligne ou en local => checkbox
+    	// Omero or local => checkbox
     private JPanel output2 = new JPanel(); 
     private JLabel label_recordoption = new JLabel("Where to save results :");
     private JCheckBox checkinline = new JCheckBox("Omero");
     private JCheckBox checkoutline = new JCheckBox("Local");
-			// en ligne
+			// Omero
 	private JPanel output3a = new JPanel(); 
 	private JLabel label_outdata = new JLabel("Choose an output dataset :"); 
 	private ButtonGroup outdata = new ButtonGroup();
 	private JRadioButton exist = new JRadioButton("Existing dataset");
 	private JRadioButton diff = new JRadioButton("New dataset");
-				// Dataset existant
+				// existing dataset 
 	private JPanel output3a1 = new JPanel(); 
-	private JLabel label_existproject = new JLabel("project ID: ");
+	private JLabel label_existproject = new JLabel("Project Name: ");
 	private JComboBox projectListOutExist = new JComboBox();
 	private JLabel label_existprojectname = new JLabel();
-	private JLabel label_existdataset = new JLabel("Dataset ID: ");
+	private JLabel label_existdataset = new JLabel("Dataset Name: ");
 	private JComboBox datasetListOutExist = new JComboBox();
 	private JLabel label_existdatasetname = new JLabel();
-				// Nouveau dataSet
+				// new dataSet
 	private JPanel output3a2 = new JPanel(); 
-	private JLabel label_newproject = new JLabel("Project ID: ");	
+	private JLabel label_newproject = new JLabel("Project Name: ");	
 	private JComboBox projectListOutNew = new JComboBox();
 	private JLabel label_newprojectname = new JLabel();
-	private JLabel label_newdataset = new JLabel("Dataset name: ");
+	private JLabel label_newdataset = new JLabel("Dataset Name: ");
 	private JTextField newdataset = new JTextField(10);
-			// en local
+			//  local
 	private JPanel output3b = new JPanel(); 
     private JTextField directory = new JTextField(20);
 	private JButton directory_btn = new JButton("Output directory");
 	
-	// Bouton de validation
+	// validation button
 	private JPanel panelBtn = new JPanel();
     private JButton valider = new JButton("Submit");
 
-    //variable à garder
+    //variables to keep
     private String macro_chosen;
     private String extension_chosen;
 	private Long dataset_id_in;
@@ -282,6 +291,7 @@ public class Getinfos extends JFrame {
 	private Long dataset_id_out;
 	private Long project_id_out;
 	private String dataset_name_out;
+	private boolean ima_res;
 
     private LinkedHashMap<Long,Long> groupmap;
     private LinkedHashMap<Long,Long> idmap;
@@ -299,6 +309,9 @@ public class Getinfos extends JFrame {
 
 	private ArrayList<Object> MROIS;
 	private ArrayList<Object> ROISL;
+	private ArrayList<Long> ima_ids;
+	private ArrayList<Long> images_ids;
+	private ArrayList<boolean> image_resultat;
 
     private Gateway gate;
 	private SecurityContext ctx;
@@ -306,7 +319,7 @@ public class Getinfos extends JFrame {
 	private LoginCredentials cred;
 
 
-	// Transforme un LinkedHashMap en Map dont les clés sont les noms et les valeurs les ids
+	// Transform a LinkedHashMap in Map where keys are names and values are ids
 	def HashToMap (LinkedHashMap<Long,Long> hash, Map<String,Long> M, Set<Long> cles) {
 		M = [:];
 		cles = hash.keySet();
@@ -371,10 +384,16 @@ public class Getinfos extends JFrame {
 		//macro1.setLayout(new BoxLayout(macro1, BoxLayout.LINE_AXIS));
 		macro1.add(macro); macro.setMaximumSize(new Dimension(300, 30));
         macro1.add(macro_btn); macro_btn.addActionListener(new BoutonMacroListener());
-        macro2.setLayout(new BoxLayout(macro2, BoxLayout.LINE_AXIS));
-        macro2.add(checkresfile);
+		macro2.setLayout(new BoxLayout(macro2, BoxLayout.LINE_AXIS));
+        macro2.add(checkresfile_ima);
+        macro3.setLayout(new BoxLayout(macro3, BoxLayout.LINE_AXIS));
+        macro3.add(checkresfile_res);
+		macro4.setLayout(new BoxLayout(macro4, BoxLayout.LINE_AXIS));
+        macro4.add(checkresfile_roi);	
         panelMacro.add(macro1);
         panelMacro.add(macro2);
+		panelMacro.add(macro3);
+		panelMacro.add(macro4);
         panelMacro.setLayout(new BoxLayout(panelMacro,BoxLayout.PAGE_AXIS));
         panelMacro.setBorder(BorderFactory.createTitledBorder("Macro"));
         cp.add(panelMacro);
@@ -412,7 +431,6 @@ public class Getinfos extends JFrame {
 		output3b.add(directory); directory.setMaximumSize(new Dimension(300, 30));
 		output3b.add(directory_btn); directory_btn.addActionListener(new BoutonDirectoryListener());
 		//
-		panelOutput.add(output1);
 		panelOutput.add(output2);
 		panelOutput.setLayout(new BoxLayout(panelOutput,BoxLayout.PAGE_AXIS));
 		panelOutput.setBorder(BorderFactory.createTitledBorder("Output"));
@@ -512,16 +530,16 @@ public class Getinfos extends JFrame {
 			int returnVal = inputchoice.showOpenDialog(null);
 			if(returnVal==JFileChooser.APPROVE_OPTION){
 				File absindir = new File(inputchoice.getSelectedFile().getAbsolutePath());
-				// teste si le dossier existe (cas où on écrit à la main)
+				// verify if record exist (handwritten case)
 				if(absindir.exists() && absindir.isDirectory()) { 
 					inputfolder.setText(absindir.toString());
 				} else {
-					//trouver une façon d'empêcher la fermeture du JFileChooser?
+					//find a way to prevent JFileChooser closure?
 					errorWindow("Input: \nThe directory doesn't exist"); // new JOptionPane(inputchoice);
 				}
             }
             if (returnVal==JFileChooser.CANCEL_OPTION && inputfolder.getText()=="") {
-            	// prévient l'utilisateur si on annule la sélection du dossier sans avoir rien choisi au préalable
+            	// warn user if macro selection canceled without any previous choice
             	warningWindow("Input: \nNo directory selected");
             }
 		}
@@ -538,7 +556,7 @@ public class Getinfos extends JFrame {
 				if(absfile.exists() && !absfile.isDirectory()) { 
 					macro.setText(absfile.toString());
 				} else {
-					//trouver une façon d'empêcher la fermeture du JFileChooser?
+					//find a way to prevent JFileChooser closure?
 					warningWindow("Macro: \nThe file doesn't exist"); //new JOptionPane(macrochoice);
 				}
             }
@@ -561,7 +579,7 @@ public class Getinfos extends JFrame {
 				if(absdir.exists() && absdir.isDirectory()) { 
 					directory.setText(absdir.toString());
 				} else {
-					//trouver une façon d'empêcher la fermeture du JFileChooser?
+					////find a way to prevent JFileChooser closure?
 					errorWindow("Output: \nThe directory doesn't exist");
 				}
 			}
@@ -573,26 +591,42 @@ public class Getinfos extends JFrame {
 
 	class CheckInOutListener implements ItemListener {
 		public void itemStateChanged(ItemEvent e) {
-			if (checkinline.isSelected()) {
-				panelOutput.add(output3a);
-				if (diff.isSelected()) {
-					panelOutput.add(output3a2);
+			if (checkresfile_ima.isSelected()) {
+				panelOutput.remove(output3b);
+				panelOutput.add(output1);
+				if (checkinline.isSelected()) {
+					panelOutput.add(output3a);
+					if (diff.isSelected()) {
+						panelOutput.add(output3a2);
+						panelOutput.remove(output3a1);
+					} else if (exist.isSelected()) {
+						panelOutput.add(output3a1);
+						panelOutput.remove(output3a2);
+					}
+				} else {
+					panelOutput.remove(output3a);
 					panelOutput.remove(output3a1);
-				} else if (exist.isSelected()) {
-					panelOutput.add(output3a1);
 					panelOutput.remove(output3a2);
 				}
+				if (checkoutline.isSelected()) {
+				panelOutput.add(output3b);
+				} else {
+				panelOutput.remove(output3b);
+				}
 			} else {
+				panelOutput.remove(output1);
+				panelOutput.remove(output3a1);
 				panelOutput.remove(output3a);
 				panelOutput.remove(output3a1);
 				panelOutput.remove(output3a2);
-			}
-			if (checkoutline.isSelected()) {
-				panelOutput.add(output3b);
-			} else {
 				panelOutput.remove(output3b);
+				if (checkoutline.isSelected()) {
+				panelOutput.add(output3b);
+				} else {
+				panelOutput.remove(output3b);
+				}
 			}
-			this.setVisible(true)
+		this.setVisible(true)
 		}
 	}
 
@@ -605,6 +639,7 @@ public class Getinfos extends JFrame {
 			Boolean omerorecord;
 			Boolean localrecord;
 			Boolean recordtype;
+			Boolean sens;
 			
 			// input data
 			if (omero.isSelected()) {
@@ -641,7 +676,7 @@ public class Getinfos extends JFrame {
 				}
 			}
 
-			// suffixe
+			// suffix
 			extension_chosen = extension.getText();
 			
 			// record type
@@ -689,9 +724,21 @@ public class Getinfos extends JFrame {
 				recordtype = true;
 			}
 			
+			if (!checkresfile_res.isSelected() && !checkresfile_roi.isSelected() && !checkresfile_ima.isSelected()) { // No query
+				errorWindow("Macro: \nYou have to choose almost one output");
+			} else {
+				sens = true;
+			}
+
+			if (local.isSelected() && checkinline.isSelected() && !checkresfile_ima.isSelected()) { // Impossible to upload
+				errorWindow("Output: \nYou can't upload results file or ROIs on OMERO if your image isn't in OMERO");
+				sens = false;
+			} else {
+				sens = true;
+			}
 
 			// 
-			if (inputdata && macrodata && recordtype) {
+			if (inputdata && macrodata && recordtype && sens) {
 				try {
 					ProgressThread progress = new ProgressThread();
 					progress.start();
@@ -743,9 +790,12 @@ public class Getinfos extends JFrame {
 
 		public void runTreatment() {
 			
-			Boolean results;
-			if (checkresfile.isSelected()) {results = true;} 
+			boolean results;
+			boolean sav_rois;
+			if (checkresfile_res.isSelected()) {results = true;} 
 			else {results = false;}
+			if (checkresfile_roi.isSelected()) {sav_rois = true;} 
+			else {sav_rois = false;}
 			ArrayList<String> paths_images;
 			ArrayList<String> paths_attach;
 
@@ -762,34 +812,48 @@ public class Getinfos extends JFrame {
 				prog_label.setText("Images recovery from Omero...");
 				Collection<ImageData> images = get_images(gate, ctx, dataset_id_in);
 				prog_label.setText("Macro running...");
-				ArrayList<ArrayList<String>> paths = run_macro(images,creds[0],creds[1],creds[2],creds[3],ctx,macro_chosen,extension_chosen,directory_out,results,gate,state_label);
+				ArrayList<ArrayList<String>> paths = run_macro(images,creds[0],creds[1],creds[2],creds[3],ctx,macro_chosen,extension_chosen,directory_out,results,sav_rois,gate,state_label);
 				state_label.setText("");
 				paths_images = paths[0];
 				paths_attach = paths[1];
                 ROISL = paths[2];
+				ima_ids = paths[3];
+				ima_res = paths[4][0];
 			} else {
 				prog_label.setText("Images recovery from input folder...");
 				ArrayList<String> images = get_images_from_directory(directory_in);
 				prog_label.setText("Macro running...");
-				ArrayList<ArrayList<String>> paths = run_macro_on_local_images(images,macro_chosen,extension_chosen,directory_out,results,gate,state_label);
+				ArrayList<ArrayList<String>> paths = run_macro_on_local_images(images,macro_chosen,extension_chosen,directory_out,results,sav_rois,gate,state_label);
 				state_label.setText("");
 				paths_images = paths[0];
 				paths_attach = paths[1];
             	ROISL = paths[2];
+				ima_res = paths[3][0];
 			}
 
-			if (diff.isSelected()) {
+			if (diff.isSelected() && !ima_res) {
 				prog_label.setText("New dataset creation...");
 				dataset_id_out = create_dataset_in_project(gate, ctx, dataset_name_out, project_id_out);
 			}
 
 			if (checkinline.isSelected()) {
-				prog_label.setText("Images import on omero...");
-				ArrayList<Long> images_ids = import_images_in_dataset(paths_images,creds[0],creds[1],creds[2],creds[3],dataset_id_out,gate,ctx,ROISL,state_label)
-				if (results == true) { 
+				prog_label.setText("import on omero...");
+				if (ima_res && checkresfile_ima.isSelected()) {
+					images_ids = import_images_in_dataset(paths_images,creds[0],creds[1],creds[2],creds[3],dataset_id_out,gate,ctx,ROISL,state_label,sav_rois);
+				}
+				 if (!checkresfile_ima.isSelected() && checkresfile_roi.isSelected()) {
+					images_ids = import_Rois_in_image(ima_ids,dataset_id_in,gate,ctx,ROISL,state_label);
+				}
+				if (results == true && !checkresfile_ima.isSelected() && !checkresfile_roi.isSelected() && checkresfile_res.isSelected()) {
+					prog_label.setText("Attachement of results files...");
+					upload_tag_files(gate,ctx,paths_attach,ima_ids)
+				} else if (results == true) { 
 					prog_label.setText("Attachement of results files...");
 					upload_tag_files(gate,ctx,paths_attach,images_ids)
-				}	
+				}
+				if (!ima_res && checkresfile_ima.isSelected())	{
+					errorWindow("Impossible to save: \nOutput image must be different than input image");
+				}
 			}
 
 			if (!checkoutline.isSelected()) {
@@ -936,24 +1000,29 @@ public class Getinfos extends JFrame {
 	}
 	
 	def save_and_close_with_res(image,attach) {
-		//IJ.selectWindow("Result") //dépend si images renomées ou non dans la macro
+		//IJ.selectWindow("Result") //depends if images are renamed or not in the macro
 		
 		IJ.saveAs("TIFF",image)
-		IJ.run("Close")
+		//IJ.run("Close")
 		IJ.selectWindow("Results")
 		IJ.saveAs("Results",attach)
-		IJ.run("Close")
+		//IJ.run("Close")
 	}
 
 	def save_and_close_without_res(image) {
-		//IJ.selectWindow("Result") //dépend si images renomées ou non dans la macro
+		//IJ.selectWindow("Result") //depends if images are renamed or not in the macro
 		IJ.saveAs("TIFF",image)
-		IJ.run("Close")
-	//	IJ.run("Close") // nécessaire ? selon macro ? (sinon une fenetre reste ouverte)
+	//	IJ.run("Close")
 	}
 
-	// Récupère les ROIS d'une image avant leurs suppression et l'entre dans un tableau
-    def save_ROIS (AL_ROIS,image_id,imap,gat) {
+	def save_results_only(attach) {
+		IJ.selectWindow("Results")
+		IJ.saveAs("Results",attach)
+	//	IJ.run("Close")
+	}
+
+	// Retrieves ROIS of an image, before their deletion and add it in an array
+    def save_ROIS_2D (AL_ROIS,image_id,imap) {
 		println "saving ROIs"
 		ROIReader rea = new ROIReader()
 		Object roi_list = rea.readImageJROIFromSources(image_id, imap)
@@ -961,7 +1030,60 @@ public class Getinfos extends JFrame {
 		return AL_ROIS
 	}
 
-	def run_macro(images,Host,Port,User,Password,context,macro_chosen,extension_chosen,dir,results,gateway,lab){
+	// Retrieves 3D ROIS of an image, before their deletion and add it in an array
+	def save_ROIS_3D (AL_ROIS,image_id,imap) {
+		println "saving ROIs"
+		ROIReader rea = new ROIReader()
+		Object roi_list = rea.readImageJROIFromSources(image_id, imap)
+		RoiManager rm = RoiManager.getInstance()
+		Roi[] ij_rois = []
+		if (rm) {ij_rois = rm.getRoisAsArray()}   
+   		int number_4D_rois = 0
+		Map<String,int> roi_4D_id = [:]
+		Map<int,Object> final_roi_list = [:]
+
+		if (ij_rois) {
+			for (ij_roi : ij_rois) {
+				if (ij_roi.getProperty("ROI") != null) {
+          			int ij_4D_roi_id = Integer.parseInt(ij_roi.getProperty("ROI"))
+          			number_4D_rois = Math.max(ij_4D_roi_id, number_4D_rois)
+        			roi_4D_id.put(ij_roi.getName() , ij_4D_roi_id)
+				}
+			}
+		}
+
+		if (roi_list) {
+			println "test 1"
+        	roi_list.each { roidata ->
+				println "test 2"
+				Iterator<ROIData> i = roidata.getIterator()
+            	while (i.hasNext()) {
+					println i
+                	Iterator<ROIData> roi = i.next()
+					println roi
+               		String name = roi[0].getText()
+					println name
+                	if (name) {
+                    	int idx_4D_roi = roi_4D_id.get(name)-1
+						println idx_4D_roi
+                    	if (final_roi_list.get(idx_4D_roi)) {
+                        	final_roi_list.get(idx_4D_roi).addShapeData(roi[0])
+							println "oui"
+						}
+                    	else {
+                        	final_roi_list.put(idx_4D_roi, roidata)
+							println"non"
+						}
+					}
+				}
+			}
+		}
+		
+		AL_ROIS.add(final_roi_list)
+		return AL_ROIS
+	}
+
+	def run_macro(images,Host,Port,User,Password,context,macro_chosen,extension_chosen,dir,results,sav_rois,gateway,lab){
 		""" Run a macro on images and save the result """
 		int size = images.size()
 		String[] paths_images = new String[size];
@@ -969,39 +1091,125 @@ public class Getinfos extends JFrame {
 		IJ.run("Close All");
 		String appel='0';
 		MROIS = new ArrayList<Object>();
+		ArrayList<Long> image_ids = new ArrayList<Long>();
+		ArrayList<boolean> tab_ima_res = new ArrayList<boolean>();
 		images.eachWithIndex { image, index ->
 			// Open the image
 			lab.setText("image "+(index+1)+"/"+images.size());
 			long id = image.getId();
+			image_ids.add(id);
 			long gid = context.getGroupID();
 			open_image_plus(Host, Port, User, Password, String.valueOf(gid), String.valueOf(id));
 			ImagePlus imp = IJ.getImage(); 
+			long id_local = imp.getID();
 			// Define paths
 			String title = imp.getTitle();
 			if ((title.matches("(.*)qptiff(.*)"))==true) title=title.replace('.qptiff', '_');
 			else title = FilenameUtils.removeExtension(title);
 			String res = dir + File.separator + title + extension_chosen + ".tif";
-			String attach = dir + File.separator + "Res_" + title + extension_chosen + ".xls";
+			String attach = dir + File.separator + "Res_" + title + /* extension_chosen + */ ".xls";
 			// Analyse the images.
 			IJ.runMacroFile(macro_chosen,appel);
 			appel='1';
 			// Save and Close the various components
-			if (results == true) {
-				save_and_close_with_res(res,attach)
-                MROIS = save_ROIS (MROIS,id,imp,gateway)
+			if (sav_rois == true) {
+				// save of ROIs 
+				RoiManager rm = RoiManager.getInstance2();
+				if (checkoutline.isSelected()) {  //  local save
+					rm.runCommand("Deselect"); // deselect ROIs to save them all
+					rm.runCommand("Save", dir + File.separator + title + "_RoiSet.zip");
+					if (checkresfile_ima.isSelected()){  // image results expected
+						if (results == true) {
+							save_and_close_with_res(res,attach)
+						} else {
+							save_and_close_without_res(res)
+						}	
+					} else {
+						if (results == true) {
+							save_results_only(attach)
+						}
+					}
+				} 
+				if (checkinline.isSelected()) { // save on Omero
+					Roi[] rois = rm.getRoisAsArray();
+					boolean verif = false;
+					for(roi : rois) {
+						if (roi.getProperties() != null) verif = true;
+					}
+					if (checkresfile_ima.isSelected()){ // image results expected
+						// sauvegarde 3D
+						if (verif == true) {
+							if (results == true) {
+								save_and_close_with_res(res,attach)
+               				MROIS = save_ROIS_3D (MROIS,id,imp)
+							} else {
+								save_and_close_without_res(res)
+                			MROIS = save_ROIS_3D (MROIS,id,imp)
+							}		
+						} else {
+							// sauvegarde 2D
+							if (results == true) {
+								save_and_close_with_res(res,attach)
+               					MROIS = save_ROIS_2D (MROIS,id,imp)
+							} else {
+								save_and_close_without_res(res)
+              		  			MROIS = save_ROIS_2D (MROIS,id,imp)
+							}	
+						} 
+					}	else {
+						// sauvegarde 3D
+						if (verif == true) {
+							if (results == true) {
+								save_results_only(attach)
+               				MROIS = save_ROIS_3D (MROIS,id,imp)
+							} else {
+                			MROIS = save_ROIS_3D (MROIS,id,imp)
+							}		
+						} else {
+							// sauvegarde 2D
+							if (results == true) {
+								save_results_only(attach)
+               					MROIS = save_ROIS_2D (MROIS,id,imp)
+							} else {
+              		  			MROIS = save_ROIS_2D (MROIS,id,imp)
+							}	
+						} 
+
+					}
+				}
 			} else {
-				save_and_close_without_res(res)
-                MROIS = save_ROIS (MROIS,id,imp,gateway)
+					if (checkresfile_ima.isSelected()){ // image results expected
+						if (results == true) {
+							save_and_close_with_res(res,attach)
+						} else {
+							save_and_close_without_res(res)
+						}	
+					} else {
+						if (results == true) {
+							save_results_only(attach)
+						}
+					}
 			}
-			imp.changes = false; // Prevent "Save Changes?" dialog
-			imp.close();
+			imp.changes = false; // Prevent "Save Changes?" dialog	
+			boolean ima_res = true;
+			imp = WindowManager.getCurrentImage(); 
+			if (imp == null) {
+				ima_res = false;
+			} else {
+				int new_id = imp.getID(); // result image have to be selected in the end of the macro
+				if (new_id == id_local) {
+					ima_res = false;
+				} 
+			}
+			IJ.run("Close All"); //  To do local and Omero saves on the same time
 			paths_images[index] = res;
 			paths_attach[index] = attach;
+			tab_ima_res.add(ima_res);
 		}
-		return [paths_images,paths_attach,MROIS];
+		return [paths_images,paths_attach,MROIS,image_ids,tab_ima_res];
 	}
 	
-	def run_macro_on_local_images(images,macro_chosen,extension_chosen,dir,results,gateway,lab){
+	def run_macro_on_local_images(images,macro_chosen,extension_chosen,dir,results,sav_rois,gateway,lab){
 		""" Run a macro on images from local computer and save the result """
 		int size = images.size()
 		String[] paths_images = new String[size];
@@ -1009,6 +1217,7 @@ public class Getinfos extends JFrame {
 		IJ.run("Close All")
 		String appel='0';
 		MROIS = new ArrayList<Object>();
+		ArrayList<boolean> tab_ima_res = new ArrayList<boolean>();
 		images.eachWithIndex { Image, index ->
 			// Open the image
 			//IJ.open(Image);
@@ -1031,27 +1240,105 @@ public class Getinfos extends JFrame {
 			if ((title.matches("(.*)qptiff(.*)"))==true) title=title.replace('.qptiff', '_');
 			else title = FilenameUtils.removeExtension(title);
 			String res = dir + File.separator + title + extension_chosen + ".tif";
-			String attach = dir + File.separator + "Res_" + title + extension_chosen + ".xls";
+			String attach = dir + File.separator + "Res_" + title + /* extension_chosen + */ ".xls";
 			// Analyse the images
 			IJ.runMacroFile(macro_chosen,appel);
 			appel='1';
 			// Save and Close the various components
-			if (results == true) {
-				save_and_close_with_res(res,attach)
-                MROIS = save_ROIS (MROIS,id,imp,gateway) 
+			if (sav_rois == true) {
+				//  save of ROIs
+				RoiManager rm = RoiManager.getInstance2();
+				if (checkoutline.isSelected()) {  //  local save
+					rm.runCommand("Deselect"); // deselect ROIs to save them all
+					rm.runCommand("Save", dir + File.separator + title + "_RoiSet.zip");
+					if (checkresfile_ima.isSelected()){
+						if (results == true) {
+							save_and_close_with_res(res,attach)
+						} else {
+							save_and_close_without_res(res)
+						}	
+					} else {
+						if (results == true) {
+							save_results_only(attach)
+						}
+					}
+				} 
+				if (checkinline.isSelected()) {  // save on Omero
+					Roi[] rois = rm.getRoisAsArray();
+					boolean verif = false;
+					for(roi : rois) {
+						if (roi.getProperties() != null) verif = true;
+					}
+					if (checkresfile_ima.isSelected()){  // image results expected
+						// sauvegarde 3D
+						if (verif == true) {
+							if (results == true) {
+								save_and_close_with_res(res,attach)
+               				MROIS = save_ROIS_3D (MROIS,id,imp)
+							} else {
+								save_and_close_without_res(res)
+                			MROIS = save_ROIS_3D (MROIS,id,imp)
+							}		
+						} else {
+							// sauvegarde 2D
+							if (results == true) {
+								save_and_close_with_res(res,attach)
+               					MROIS = save_ROIS_2D (MROIS,id,imp)
+							} else {
+								save_and_close_without_res(res)
+              		  			MROIS = save_ROIS_2D (MROIS,id,imp)
+							}	
+						} 
+					}	else {
+						// sauvegarde 3D
+						if (verif == true) {
+							if (results == true) {
+								save_results_only(attach)
+               				MROIS = save_ROIS_3D (MROIS,id,imp)
+							} else {
+                			MROIS = save_ROIS_3D (MROIS,id,imp)
+							}		
+						} else {
+							// sauvegarde 2D
+							if (results == true) {
+								save_results_only(attach)
+               					MROIS = save_ROIS_2D (MROIS,id,imp)
+							} else {
+              		  			MROIS = save_ROIS_2D (MROIS,id,imp)
+							}	
+						} 
+
+					}
+				}
 			} else {
-				save_and_close_without_res(res)
-                MROIS = save_ROIS (MROIS,id,imp,gateway)
-			}			
+					if (checkresfile_ima.isSelected()){  // image results expected
+						if (results == true) {
+							save_and_close_with_res(res,attach)
+						} else {
+							save_and_close_without_res(res)
+						}	
+					} else {
+						if (results == true) {
+							save_results_only(attach)
+						}
+					}
+			}	 
 			imp.changes = false; // Prevent "Save Changes?" dialog
-			imp.close();
+			imp = IJ.getImage(); 	
+			boolean ima_res = true;
+			int new_id = imp.getID(); // result image have to be selected in the end of the macro
+			if (new_id == id) {
+				ima_res = false;
+			} 
+			IJ.run("Close All"); //  To do local and Omero saves on the same time
 			paths_images[index] = res;
 			paths_attach[index] = attach;
+			tab_ima_res.add(ima_res);
 		}
-		return [paths_images,paths_attach,MROIS];
+		return [paths_images,paths_attach,MROIS,tab_ima_res];
 	}
 
-	// Lis le tableau de ROIS et l'enregistre sur omero
+	// Read the ROIS array and upload them on omero
 	def upload_ROIS(AL_ROIS,ctx,gat,id,indice) {
         exp = gat.getLoggedInUser()		
 		if (AL_ROIS.get(indice) != null && (AL_ROIS.get(indice)).size() > 0) {
@@ -1064,7 +1351,7 @@ public class Getinfos extends JFrame {
 	}
 
 	
-	def import_images_in_dataset(paths_images,Host,Port,User,Password,dataset_id,gateway,context,ROISL,lab) {
+	def import_images_in_dataset(paths_images,Host,Port,User,Password,dataset_id,gateway,context,ROISL,lab,sav_rois) {
 		""" Import images in Omero server from paths_images and return ids of these images in dataset_id """
 		//paths_images : String[]
 		ArrayList<Long> initial_images_ids = get_image_ids(gateway, context, dataset_id)
@@ -1115,7 +1402,9 @@ public class Getinfos extends JFrame {
 					if (!initial_images_ids.contains(id)) {
 						initial_images_ids.add(id)
 						images_ids.add(id)
-						indice = upload_ROIS(ROISL,context,gateway,id,indice)
+						if (sav_rois){
+							indice = upload_ROIS(ROISL,context,gateway,id,indice)
+						}
 					}
 				}
 			} catch (Exception e) {
@@ -1123,6 +1412,18 @@ public class Getinfos extends JFrame {
 				println(e.getCause());
 				//e.printStackTrace();
 			}
+		}
+		return images_ids
+	}
+
+	def import_Rois_in_image(images_ids,dataset_id,gateway,context,ROISL,lab) {
+		""" Import Rois in Omero server on images and return ids of these images in dataset_id """
+		int indice = 0;
+		long ind = 1;
+		images_ids.each { id ->
+			indice = upload_ROIS(ROISL,context,gateway,id,indice)
+			lab.setText("image "+ind+"/"+images_ids.size());
+			ind = ind+1;
 		}
 		return images_ids
 	}
@@ -1205,3 +1506,4 @@ public class Getinfos extends JFrame {
 public static void main(String[] args) {
         new Connexion();
 }
+
