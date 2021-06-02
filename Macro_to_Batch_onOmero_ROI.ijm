@@ -23,6 +23,6 @@ rename("Image");
 setAutoThreshold("Otsu dark stack");
 run("Set Measurements...", "area mean limit redirect=None decimal=2");
 run("Analyze Particles...", "display clear add");
-selectWindow("Image");
-resetThreshold();
-
+//selectWindow("Image");
+//resetThreshold();
+close("Image");
