@@ -29,6 +29,7 @@ import omero.gateway.facility.BrowseFacility
 import omero.gateway.facility.DataManagerFacility
 import omero.gateway.facility.ROIFacility
 import omero.gateway.facility.TablesFacility
+import omero.gateway.facility.AdminFacility
 import omero.gateway.exception.DSOutOfServiceException
 import omero.log.SimpleLogger
 import omero.model.ChecksumAlgorithmI
@@ -49,6 +50,7 @@ import omero.gateway.model.ExperimenterData
 import omero.gateway.model.TableData
 import omero.gateway.model.TableDataColumn
 import omero.gateway.model.ROIData
+import omero.gateway.model.ROIResult
 import omero.model.DatasetI
 import omero.model.ProjectI
 
@@ -76,6 +78,7 @@ import loci.plugins.LociExporter
 import omero.model.ChecksumAlgorithm
 import ome.model.core.OriginalFile
 import omero.api.RawFileStorePrx
+//import ome.api.IAdmin
 import ome.model.annotations.ImageAnnotationLink
 import omero.model.ImageAnnotationLinkI
 
@@ -98,6 +101,9 @@ import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
+import java.time.*;
+import java.text.SimpleDateFormat;  
+import java.util.Date;
 
 
 
@@ -181,7 +187,7 @@ public class Connexion extends JFrame {
 				ExperimenterData exp = conn[1];
 				LoginCredentials cred = conn[2];
 				this.dispose();
-				new Getinfos(gate,exp,cred);
+				new Getinfos(gate,exp,cred,User);
 			}
 			catch(DSOutOfServiceException | omero.ClientError e1) { //DSOutOfServiceException e1 //omero.ClientError
 				String errorValue = new String(e1.getMessage());
@@ -207,8 +213,11 @@ public class Getinfos extends JFrame {
 	// choix du groupe
 	private JPanel panelGroup = new JPanel();
 	private JPanel group = new JPanel(); 
+	private JPanel group_user = new JPanel(); 
 	private JLabel label_group = new JLabel("Group Name: ");
+	private JLabel label_user = new JLabel("User Name: ");
 	private JComboBox groupList = new JComboBox();
+	private JComboBox userList = new JComboBox();
 	private JLabel label_groupname = new JLabel();
 	
 	// choices of input images
@@ -221,6 +230,8 @@ public class Getinfos extends JFrame {
 	private ButtonGroup indata = new ButtonGroup();
 	private JRadioButton omero = new JRadioButton("Omero");
 	private JRadioButton local = new JRadioButton("Local");
+	private JCheckBox checkresfile_load_roi = new JCheckBox(" Load ROIs ");
+	private JCheckBox checkresfile_del_roi = new JCheckBox(" Clear ROIs each time ");
     	// choice of the dataSet
 	private JLabel label_projectin = new JLabel("Project Name: ");
 	private JComboBox projectListIn = new JComboBox();
@@ -301,6 +312,7 @@ public class Getinfos extends JFrame {
 	private Map<String,Long> idgroup;
 	private Map<String,Long> idproj;
 	private Map<String,Long> idata;
+	private Map<String,Long> id_user;
 
     private Set<Long> project_ids;
     private Set<Long> group_ids;
@@ -332,17 +344,17 @@ public class Getinfos extends JFrame {
 
 
 
-	public Getinfos(Gateway gte,ExperimenterData expm,LoginCredentials crd) {
+	public Getinfos(Gateway gte,ExperimenterData expm,LoginCredentials crd, String user_name) {
 		///
 		super("Choice of input files and output location");
-		this.setSize(600,550);
+		this.setSize(600,700);
 		this.setLocationRelativeTo(null);
         ///
 		gate = gte;
 		exp = expm;
 		cred = crd;
 		///
-		groupmap = my_groups(exp);
+		groupmap = my_groups(exp,user_name,gate);
 		idgroup = HashToMap(groupmap,idgroup,groupmap_ids); 
 		group_ids = idgroup.keySet();
 		group_ids.each { group_id ->
@@ -357,7 +369,10 @@ public class Getinfos extends JFrame {
 		group.add(label_group);
 		group.add(groupList); groupList.addActionListener(new ComboGroupListener());
 		group.add(label_groupname); label_groupname.setFont(namefont);
+		group_user.add(label_user);
+		group_user.add(userList); userList.addActionListener(new ComboUserListener());
 		panelGroup.add(group);
+		panelGroup.add(group_user);
 		panelGroup.setBorder(BorderFactory.createTitledBorder("Group"));
 		cp.add(panelGroup);
 		
@@ -372,6 +387,9 @@ public class Getinfos extends JFrame {
 		input2a.add(label_datasetin); 
 		input2a.add(datasetListIn); datasetListIn.addActionListener(new ComboDataInListener());
 		input2a.add(label_datasetinname); label_datasetinname.setFont(namefont);
+		input2a.add(checkresfile_load_roi);
+		input2a.add(checkresfile_del_roi);
+
 		//input2b.setLayout(new BoxLayout(input2b, BoxLayout.LINE_AXIS));
 		input2b.add(inputfolder); inputfolder.setMaximumSize(new Dimension(300, 30));
 		input2b.add(inputfolder_btn); inputfolder_btn.addActionListener(new BoutonInputFolderListener());
@@ -447,7 +465,22 @@ public class Getinfos extends JFrame {
 			String group_id = groupList.getSelectedItem()
 			label_groupname.setText("ID = "+String.valueOf(idgroup.get(group_id)))
 			ctx = new SecurityContext(idgroup.get(group_id));
-			ArrayList maps = my_projects_and_datasets(gate,ctx)
+			GroupData fullGroup = gate.getFacility(AdminFacility.class).lookupGroup(ctx, group_id)
+			Set<ExperimenterData> members = fullGroup.getExperimenters()
+			id_user = [:];
+			userList.removeAllItems();
+			userList.addItem("All members");
+			members.each{ memb ->
+				userList.addItem(memb.getUserName());
+				id_user.put(memb.getUserName(),memb.getId())
+			}
+		}
+	}
+
+	class ComboUserListener implements ActionListener {
+		public void actionPerformed(ActionEvent e) {
+			String name_user = userList.getSelectedItem()
+			ArrayList maps = my_projects_and_datasets(gate,ctx,name_user,id_user)
 			idmap = maps[0]
 			projname = maps[1]
 			idproj = HashToMap(projname,idproj,project_ids);
@@ -819,6 +852,9 @@ public class Getinfos extends JFrame {
                 ROISL = paths[2];
 				ima_ids = paths[3];
 				ima_res = paths[4][0];
+				if (checkresfile_del_roi.isSelected()) {
+					delete_ROIs(gate, ctx, images);
+				} 
 			} else {
 				prog_label.setText("Images recovery from input folder...");
 				ArrayList<String> images = get_images_from_directory(directory_in);
@@ -838,20 +874,20 @@ public class Getinfos extends JFrame {
 
 			if (checkinline.isSelected()) {
 				prog_label.setText("import on omero...");
-				if (ima_res && checkresfile_ima.isSelected()) {
+				if (ima_res && checkresfile_ima.isSelected()) {				
 					images_ids = import_images_in_dataset(paths_images,creds[0],creds[1],creds[2],creds[3],dataset_id_out,gate,ctx,ROISL,state_label,sav_rois);
 				}
-				 if (!checkresfile_ima.isSelected() && checkresfile_roi.isSelected()) {
+				 if (!checkresfile_ima.isSelected() && checkresfile_roi.isSelected()) {				 
 					images_ids = import_Rois_in_image(ima_ids,dataset_id_in,gate,ctx,ROISL,state_label);
 				}
-				if (results == true && !checkresfile_ima.isSelected() && !checkresfile_roi.isSelected() && checkresfile_res.isSelected()) {
+				if (results == true && !checkresfile_ima.isSelected() && !checkresfile_roi.isSelected() && checkresfile_res.isSelected()) {				
 					prog_label.setText("Attachement of results files...");
 					upload_tag_files(gate,ctx,paths_attach,ima_ids)
-				} else if (results == true) { 
+				} else if (results == true && checkresfile_ima.isSelected()) { 	
 					prog_label.setText("Attachement of results files...");
 					upload_tag_files(gate,ctx,paths_attach,images_ids)
 				}
-				if (!ima_res && checkresfile_ima.isSelected())	{
+				if (!ima_res && checkresfile_ima.isSelected())	{	
 					errorWindow("Impossible to save: \nOutput image must be different than input image");
 				}
 			}
@@ -898,7 +934,7 @@ public class Getinfos extends JFrame {
 		CancelWarningPane.showMessageDialog(null, message, "Warning", JOptionPane.WARNING_MESSAGE);
 	}
 
-	def my_groups(experimenter) {
+	def my_groups(experimenter,user_name,gateway) {
 		ArrayList<GroupData> groups = experimenter.getGroups()
 		def groupmap = [:]
 		for (group in groups) {
@@ -911,24 +947,41 @@ public class Getinfos extends JFrame {
 		return groupmap
 	}
 	
-	def my_projects_and_datasets(gateway,context) {
+	def my_projects_and_datasets(gateway,context,name_user,id_user) {
 		BrowseFacility browse = gateway.getFacility(BrowseFacility)
 		Collection<ProjectData> projects = browse.getProjects(context)
 		def idmap = [:]
 		def projname = [:]
 		def dataname = [:]
 		for (project in projects) {
-			Long project_id = project.getId()
-			String project_name = project.getName()
-			idmap[project_id] = []
-			projname[project_id] = project_name
-			Set<DatasetData> datasets = project.getDatasets()
-			for (dataset in datasets) {
-				Long dataset_id = dataset.getId()
-				String dataset_name = dataset.getName()
-				idmap[project_id].add(dataset_id)
-				dataname[dataset_id] = dataset_name
+			if (name_user != "All members") {
+				if (project.getOwner().getId() == id_user.get(name_user)) {
+					Long project_id = project.getId()
+					String project_name = project.getName()
+					idmap[project_id] = []
+					projname[project_id] = project_name
+					Set<DatasetData> datasets = project.getDatasets()
+					for (dataset in datasets) {
+						Long dataset_id = dataset.getId()
+						String dataset_name = dataset.getName()
+						idmap[project_id].add(dataset_id)
+						dataname[dataset_id] = dataset_name
+					}
+				}
+			} else {
+				Long project_id = project.getId()
+				String project_name = project.getName()
+				idmap[project_id] = []
+				projname[project_id] = project_name
+				Set<DatasetData> datasets = project.getDatasets()
+				for (dataset in datasets) {
+					Long dataset_id = dataset.getId()
+					String dataset_name = dataset.getName()
+					idmap[project_id].add(dataset_id)
+					dataname[dataset_id] = dataset_name
+				}
 			}
+			
 		}
 		return [idmap,projname,dataname]
 	}
@@ -948,6 +1001,27 @@ public class Getinfos extends JFrame {
 		ids.add(new Long(dataset_id))
 		Collection<ImageData> images = browse.getImagesForDatasets(context, ids)
 		return images
+	}
+
+	def delete_ROIs(gateway, context, images) {
+		println "ROIs deletion from Omero"
+		Long image_id
+		images.each { image ->
+			image_id = image.getId();
+			ROIFacility roi_facility = gateway.getFacility(ROIFacility)
+			ArrayList<ROIResult> res_rois = roi_facility.loadROIs(context,image_id)
+			res_rois.each { res_roi ->
+				ArrayList<ROIData> rois = res_roi.getROIs()
+				rois.each { roi ->
+					if (roi !== null) {
+						gateway.getFacility(DataManagerFacility.class).delete(context, roi.asIObject())
+					}
+				}
+
+			}
+
+		}
+
 	}
 
 	def get_images_from_directory(directory){
@@ -994,8 +1068,14 @@ public class Getinfos extends JFrame {
 	    String location = "location=[OMERO]"
 	    String open = "open=[omero:server=${HOST}\nuser=${USERNAME.trim()}\nport=${PORT}\npass=${PASSWORD.trim()}\ngroupID=${group_id}\niid=${image_id}]"
 	    String windowless = "windowless=true"
+		String roi ="display_rois rois_import=[ROI manager]"
 	    String view = "view=Hyperstack"
-	    String options = "$location $open $windowless $view"
+		String options
+		if (checkresfile_del_roi.isSelected()) {
+			options = "$location $open $windowless $roi $view"
+		} else {
+			options = "$location $open $windowless $view"
+		}
 	    IJ.runPlugIn("loci.plugins.LociImporter", options)
 	}
 	
@@ -1083,6 +1163,14 @@ public class Getinfos extends JFrame {
 		return AL_ROIS
 	}
 
+	def today_date() {
+		SimpleDateFormat formatter = new SimpleDateFormat("HH-mm-ss-dd-MM-yyyy");  
+    	Date date = new Date();  
+		String text_date = formatter.format(date);
+		ArrayList<String> tab_date = text_date.split('-',4);
+		return tab_date.get(3)+"_"+tab_date.get(0)+"h"+tab_date.get(1);
+	}
+
 	def run_macro(images,Host,Port,User,Password,context,macro_chosen,extension_chosen,dir,results,sav_rois,gateway,lab){
 		""" Run a macro on images and save the result """
 		int size = images.size()
@@ -1107,7 +1195,7 @@ public class Getinfos extends JFrame {
 			if ((title.matches("(.*)qptiff(.*)"))==true) title=title.replace('.qptiff', '_');
 			else title = FilenameUtils.removeExtension(title);
 			String res = dir + File.separator + title + extension_chosen + ".tif";
-			String attach = dir + File.separator + "Res_" + title + /* extension_chosen + */ ".xls";
+			String attach = dir + File.separator + "Res_" + title + /* extension_chosen + */ "_" + today_date() + ".xls";
 			// Analyse the images.
 			IJ.runMacroFile(macro_chosen,appel);
 			appel='1';
@@ -1117,7 +1205,7 @@ public class Getinfos extends JFrame {
 				RoiManager rm = RoiManager.getInstance2();
 				if (checkoutline.isSelected()) {  //  local save
 					rm.runCommand("Deselect"); // deselect ROIs to save them all
-					rm.runCommand("Save", dir + File.separator + title + "_RoiSet.zip");
+					rm.runCommand("Save", dir + File.separator + title  + "_" + today_date() + "_RoiSet.zip");
 					if (checkresfile_ima.isSelected()){  // image results expected
 						if (results == true) {
 							save_and_close_with_res(res,attach)
@@ -1240,7 +1328,7 @@ public class Getinfos extends JFrame {
 			if ((title.matches("(.*)qptiff(.*)"))==true) title=title.replace('.qptiff', '_');
 			else title = FilenameUtils.removeExtension(title);
 			String res = dir + File.separator + title + extension_chosen + ".tif";
-			String attach = dir + File.separator + "Res_" + title + /* extension_chosen + */ ".xls";
+			String attach = dir + File.separator + "Res_" + title + /* extension_chosen + */ "_" + today_date() + ".xls";
 			// Analyse the images
 			IJ.runMacroFile(macro_chosen,appel);
 			appel='1';
@@ -1250,7 +1338,7 @@ public class Getinfos extends JFrame {
 				RoiManager rm = RoiManager.getInstance2();
 				if (checkoutline.isSelected()) {  //  local save
 					rm.runCommand("Deselect"); // deselect ROIs to save them all
-					rm.runCommand("Save", dir + File.separator + title + "_RoiSet.zip");
+					rm.runCommand("Save", dir + File.separator + title  + "_" + today_date() + "_RoiSet.zip");
 					if (checkresfile_ima.isSelected()){
 						if (results == true) {
 							save_and_close_with_res(res,attach)
@@ -1323,13 +1411,17 @@ public class Getinfos extends JFrame {
 						}
 					}
 			}	 
-			imp.changes = false; // Prevent "Save Changes?" dialog
-			imp = IJ.getImage(); 	
+			imp.changes = false; // Prevent "Save Changes?" dialog	
 			boolean ima_res = true;
-			int new_id = imp.getID(); // result image have to be selected in the end of the macro
-			if (new_id == id) {
+			imp = WindowManager.getCurrentImage(); 
+			if (imp == null) {
 				ima_res = false;
-			} 
+			} else {
+				int new_id = imp.getID(); // result image have to be selected in the end of the macro
+				if (new_id == id) {
+					ima_res = false;
+				} 
+			}
 			IJ.run("Close All"); //  To do local and Omero saves on the same time
 			paths_images[index] = res;
 			paths_attach[index] = attach;
