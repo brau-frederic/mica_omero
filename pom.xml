@@ -24,6 +24,12 @@
             <artifactId>simple-omero-client</artifactId>
             <version>5.8.0</version>
         </dependency>
+    
+      <dependency>
+        <groupId>org.elasticsearch</groupId>
+        <artifactId>elasticsearch</artifactId>
+        <version>7.3.0</version>
+      </dependency>
     </dependencies>
 
     <repositories>
