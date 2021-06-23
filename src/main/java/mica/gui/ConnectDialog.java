@@ -14,7 +14,7 @@ import java.util.concurrent.ExecutionException;
 import static javax.swing.JOptionPane.showMessageDialog;
 
 
-public class Connexion extends JDialog implements ActionListener {
+public class ConnectDialog extends JDialog implements ActionListener {
 
 	private final transient Client client;
 
@@ -28,7 +28,7 @@ public class Connexion extends JDialog implements ActionListener {
 	private boolean cancelled;
 
 
-	public Connexion(Client client) {
+	public ConnectDialog(Client client) {
 		super();
 		this.setModal(true);
 		this.client = client;
