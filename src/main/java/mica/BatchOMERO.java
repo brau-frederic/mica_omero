@@ -9,15 +9,15 @@ import mica.gui.BatchWindow;
 
 public class BatchOMERO implements PlugIn {
 
-    private static Client client = new Client();
-
     @Override
     public void run(String s) {
+		Client client = new Client();
         try {
             // Ask for parameters:
             ConnectDialog connectDialog = new ConnectDialog(client);
             if(connectDialog.wasCancelled()) return;
-            new BatchWindow(client);
+            BatchData data = new BatchData(client);
+            new BatchWindow(data);
         } finally {
             client.disconnect();
         }

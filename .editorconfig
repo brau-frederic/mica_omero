@@ -1,7 +1,7 @@
 [*]
 charset = utf-8
 indent_size = 4
-indent_style = space
+indent_style = tab
 insert_final_newline = false
 max_line_length = 120
 tab_width = 4
@@ -14,7 +14,7 @@ ij_visual_guides = none
 ij_wrap_on_typing = false
 
 [*.java]
-max_line_length = 80
+max_line_length = 120
 ij_visual_guides = 80
 ij_java_align_consecutive_assignments = false
 ij_java_align_consecutive_variable_declarations = false
