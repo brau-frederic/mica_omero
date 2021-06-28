@@ -6,23 +6,19 @@ public class BatchData {
 
 	private final Client client;
 
-	private boolean inputOnOMERO; 
-	private boolean newDataSet; 
-	private boolean saveImage; 
-	private boolean saveROIs; 
-	private boolean saveResults; 
-	private boolean loadROIs; 
-	private boolean clearROIs; 
-	private boolean outputOnOMERO; 
-	private boolean outputOnLocal; 
-	private long inputDatasetId; 
-	private long outputDatasetId; 
-	private long projectIdOut;
-	private String directoryIn;
-	private String directoryOut;
-	private String macroChosen; 
-	private String extensionChosen; 
-	private String nameNewDataSet; 
+	private boolean inputOnOMERO;
+	private boolean newDataSet;
+	private boolean saveImage;
+	private boolean saveROIs;
+	private boolean saveResults;
+	private boolean loadROIs;
+	private boolean clearROIs;
+	private boolean outputOnOMERO;
+	private boolean outputOnLocal;
+	private long inputDatasetId;
+	private long outputDatasetId;
+	private long inputProjectId;
+	private long outputProjectId;
 
 	// suffixe?
 
@@ -31,13 +27,33 @@ public class BatchData {
 	}
 
 
+	public long getOutputProjectId() {
+		return outputProjectId;
+	}
+
+
+	public void setOutputProjectId(Long outputProjectId) {
+		if (outputProjectId != null) this.outputProjectId = outputProjectId;
+	}
+
+
 	public long getOutputDatasetId() {
 		return outputDatasetId;
 	}
 
 
-	public void setOutputDatasetId(long outputDatasetId) {
-		this.outputDatasetId = outputDatasetId;
+	public void setOutputDatasetId(Long outputDatasetId) {
+		if (outputDatasetId != null) this.outputDatasetId = outputDatasetId;
+	}
+
+
+	public long getInputProjectId() {
+		return inputProjectId;
+	}
+
+
+	public void setInputProjectId(Long inputProjectId) {
+		if (inputProjectId != null) this.inputProjectId = inputProjectId;
 	}
 
 
@@ -46,8 +62,8 @@ public class BatchData {
 	}
 
 
-	public void setInputDatasetId(long inputDatasetId) {
-		this.inputDatasetId = inputDatasetId;
+	public void setInputDatasetId(Long inputDatasetId) {
+		if (inputDatasetId != null) this.inputDatasetId = inputDatasetId;
 	}
 
 

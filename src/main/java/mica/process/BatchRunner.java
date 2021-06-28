@@ -1,4 +1,4 @@
-package mica;
+package mica.process;
 
 import fr.igred.omero.Client;
 import fr.igred.omero.exception.AccessException;
@@ -13,7 +13,7 @@ import ij.ImagePlus;
 import ij.WindowManager;
 import ij.gui.Roi;
 import ij.plugin.frame.RoiManager;
-import mica.gui.ProcessingDialog;
+import mica.BatchData;
 import omero.gateway.SecurityContext;
 import omero.gateway.exception.DSAccessException;
 import omero.gateway.exception.DSOutOfServiceException;
@@ -28,40 +28,41 @@ import java.nio.file.Path;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
+import java.util.logging.Logger;
 
 public class BatchRunner extends Thread {
 
 	private final BatchData data;
-	private final ProcessingDialog dialog;
+	private final ProcessingProgress progress;
 	private final BatchResults bResults;
 
 
 	public BatchRunner(BatchData data) {
 		this.data = data;
-		this.dialog = null;
+		this.progress = new ProgressLog(Logger.getLogger(getClass().getName()));
 		this.bResults = null;
 	}
 
 
-	public BatchRunner(BatchData data, ProcessingDialog dialog) {
+	public BatchRunner(BatchData data, ProcessingProgress progress) {
 		this.data = data;
-		this.dialog = dialog;
+		this.progress = progress;
 		this.bResults = null;
 	}
 
 
-	private void setDialogProg(String text) {
-		if (dialog != null) dialog.setProg(text);
+	private void setProgress(String text) {
+		if (progress != null) progress.setProgress(text);
 	}
 
 
-	private void setDialogState(String text) {
-		if (dialog != null) dialog.setState(text);
+	private void setState(String text) {
+		if (progress != null) progress.setState(text);
 	}
 
 
-	private void setDialogButtonState(boolean state) {
-		if (dialog != null) dialog.setButtonState(state);
+	private void setDone() {
+		if (progress != null) progress.setDone();
 	}
 
 
@@ -102,19 +103,19 @@ public class BatchRunner extends Thread {
 
 		try {
 			if (!saveOnOmero) {
-				setDialogProg("Temporary directory creation...");
+				setProgress("Temporary directory creation...");
 				Path directoryOutf = Files
 						.createTempDirectory("Fiji_analyse");
 				data.setDirectoryOut(directoryOutf.toString());
 			}
 
 			if (Boolean.TRUE.equals(saveOnOmero)) {
-				setDialogProg("Images recovery from Omero...");
+				setProgress("Images recovery from Omero...");
 				DatasetWrapper dataset = client.getDataset(inputDatasetId);
 				List<ImageWrapper> images = dataset.getImages(client);
-				setDialogProg("Macro running...");
+				setProgress("Macro running...");
 				run_macro(bResults, images, client.getCtx(), macro, extension, directoryOut, results, saveROIs);
-				setDialogState("");
+				setState("");
 				pathsImages = bResults.getPathImages();
 				pathsAttach = bResults.getPathAttach();
 				roisL = bResults.getmROIS();
@@ -124,11 +125,11 @@ public class BatchRunner extends Thread {
 					deleteROIs(images);
 				}
 			} else {
-				setDialogProg("Images recovery from input folder...");
+				setProgress("Images recovery from input folder...");
 				List<String> images = getImagesFromDirectory(data.getDirectoryIn());
-				setDialogProg("Macro running...");
+				setProgress("Macro running...");
 				run_macro_on_local_images(bResults, images, macroChosen, extensionChosen, directoryOut, results, saveROIs);
-				setDialogState("");
+				setState("");
 				pathsImages = bResults.getPathImages();
 				pathsAttach = bResults.getPathAttach();
 				roisL = bResults.getmROIS();
@@ -136,7 +137,7 @@ public class BatchRunner extends Thread {
 			}
 
 			if (Boolean.TRUE.equals((data.shouldnewDataSet()) && Boolean.FALSE.equals(imaRes)) {
-				setDialogProg("New dataset creation...");
+				setProgress("New dataset creation...");
 				ProjectWrapper project = client.getProject(data.getProjectIdOut());
 				DatasetWrapper dataset = project
 						.addDataset(client, data.getNameNewDataSet(), "");
@@ -144,7 +145,7 @@ public class BatchRunner extends Thread {
 			}
 
 			if (Boolean.TRUE.equals(saveOnOmero)) {
-				setDialogProg("import on omero...");
+				setProgress("import on omero...");
 				if (Boolean.TRUE.equals(imaRes) && Boolean.TRUE.equals(saveImage)) {
 					imagesIds = importImagesInDataset(pathsImages, roisL, saveROIs);
 				}
@@ -154,11 +155,11 @@ public class BatchRunner extends Thread {
 				}
 				if (Boolean.TRUE.equals(results) && Boolean.FALSE.equals(saveImage) &&
 				Boolean.FALSE.equals(saveROIs)) {
-					setDialogProg("Attachement of results files...");
+					setProgress("Attachement of results files...");
 
 					uploadTagFiles(pathsAttach, imaIds);
 				} else if (Boolean.TRUE.equals(results) && Boolean.TRUE.equals(saveImage)) {
-					setDialogProg("Attachement of results files...");
+					setProgress("Attachement of results files...");
 					uploadTagFiles(pathsAttach, imagesIds);
 				}
 				if (Boolean.FALSE.equals(imaRes) && Boolean.TRUE.equals(saveImage)) {
@@ -167,12 +168,11 @@ public class BatchRunner extends Thread {
 			}
 
 			if (Boolean.FALSE.equals(saveOnLocal) {
-				setDialogProg("Temporary directory deletion...");
+				setProgress("Temporary directory deletion...");
 				delete_temp(directoryOut);
 			}
 
-			setDialogProg("Task completed!");
-			setDialogButtonState(true);
+			setDone();
 
 		} catch (Exception e3) {
 			if (e3.getMessage().equals("Macro canceled")) {
@@ -511,7 +511,7 @@ public class BatchRunner extends Thread {
 			pathsImages[index] = res;
 			pathsAttach[index] = attach;
 		}
-		
+
 		bRes.setPathImages((Arrays.asList(pathsImages)));
 		bRes.setPathAttach((Arrays.asList(pathsAttach)));
 		bRes.setmROIS(mROIS);
@@ -703,7 +703,7 @@ public class BatchRunner extends Thread {
 		long ind = 1;
 		for (Long id : imagesIds) {
 			indice = uploadROIS(roisL, id, indice);
-			setDialogState("image " + ind + "/" + imagesIds.size());
+			setState("image " + ind + "/" + imagesIds.size());
 			ind = ind + 1;
 		}
 		return imagesIds;

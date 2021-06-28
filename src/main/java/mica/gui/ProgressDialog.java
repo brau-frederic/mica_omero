@@ -1,18 +1,19 @@
 package mica.gui;
 
+import mica.process.ProcessingProgress;
+
 import javax.swing.*;
 import java.awt.Container;
 import java.awt.Font;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 
 
-public class ProcessingDialog extends JFrame {
-	private final JLabel progLabel = new JLabel("", SwingConstants.CENTER);
+public class ProgressDialog extends JFrame implements ProcessingProgress {
+	private final JLabel progressLabel = new JLabel("", SwingConstants.CENTER);
 	private final JLabel stateLabel = new JLabel("", SwingConstants.CENTER);
 	private final JButton ok = new JButton("OK");
 
-	public ProcessingDialog() {
+
+	public ProgressDialog() {
 		this.setTitle("Progression");
 		this.setLocationRelativeTo(null);
 		this.setSize(300, 200);
@@ -23,7 +24,7 @@ public class ProcessingDialog extends JFrame {
 		warnLabel
 				.setText("<html> <body style='text-align:center;'> Warning: <br>Image processing can take time <br>depending on your network rate </body> </html>");
 		warnLabel.setFont(warnfont);
-		progLabel.setFont(progfont);
+		progressLabel.setFont(progfont);
 		stateLabel.setFont(progfont);
 
 		Container cp2 = this.getContentPane();
@@ -31,13 +32,13 @@ public class ProcessingDialog extends JFrame {
 		JPanel panel0 = new JPanel();
 		panel0.add(warnLabel);
 		JPanel panel1 = new JPanel();
-		panel1.add(progLabel);
+		panel1.add(progressLabel);
 		JPanel panel2 = new JPanel();
 		panel2.add(stateLabel);
 		JPanel panel3 = new JPanel();
 		panel3.add(ok);
 		ok.setEnabled(false);
-		ok.addActionListener(new ProgressListener());
+		ok.addActionListener(e -> dispose());
 		cp2.add(panel0);
 		cp2.add(panel1);
 		cp2.add(panel2);
@@ -46,25 +47,22 @@ public class ProcessingDialog extends JFrame {
 	}
 
 
-	public void setProg(String text) {
-		progLabel.setText(text);
+	@Override
+	public void setProgress(String text) {
+		progressLabel.setText(text);
 	}
 
 
+	@Override
 	public void setState(String text) {
 		stateLabel.setText(text);
 	}
 
 
-	public void setButtonState(boolean state) {
-		ok.setEnabled(state);
-	}
-
-	class ProgressListener implements ActionListener {
-		public void actionPerformed(ActionEvent e) {
-			ProcessingDialog.this.dispose();
-		}
-
+	@Override
+	public void setDone() {
+		setProgress("Task completed!");
+		ok.setEnabled(true);
 	}
 
 }

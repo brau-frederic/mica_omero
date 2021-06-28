@@ -9,9 +9,8 @@ import fr.igred.omero.repository.DatasetWrapper;
 import fr.igred.omero.repository.ProjectWrapper;
 import ij.IJ;
 import mica.BatchData;
-import mica.BatchRunner;
+import mica.process.BatchRunner;
 import omero.gateway.Gateway;
-import omero.gateway.SecurityContext;
 
 import javax.swing.*;
 import java.awt.Container;
@@ -44,15 +43,12 @@ public class BatchWindow extends JFrame {
 
 	// choice of the dataSet
 	private final JComboBox<String> projectListIn = new JComboBox<>();
-	private final JLabel labelProjectinname = new JLabel();
+	private final JLabel labelProjectInName = new JLabel();
 	private final JComboBox<String> datasetListIn = new JComboBox<>();
-	private final JLabel labelDatasetinname = new JLabel();
 
 	// choice of the record
 	private final JTextField inputfolder = new JTextField(20);
-	private final JButton inputfolderBtn = new JButton("Images directory");
 	private final JTextField macro = new JTextField(20);
-	private final JButton macroBtn = new JButton("Macro file");
 	private final JCheckBox checkresfileIma = new JCheckBox(" The macro returns an image ");
 	private final JCheckBox checkresfileRes = new JCheckBox(" The macro returns a results file (other than images)");
 	private final JCheckBox checkresfileRoi = new JCheckBox(" The macro returns ROIs ");
@@ -87,13 +83,10 @@ public class BatchWindow extends JFrame {
 	// local
 	private final JPanel output3b = new JPanel();
 	private final JTextField directory = new JTextField(20);
-	private final JButton directoryBtn = new JButton("Output directory");
 
 	private final JButton start = new JButton("start");
-	// Ces champs peuvent être remplacés par un champ Client
-	private final Gateway gate;
 	//variables to keep
-	private BatchData data;
+	private final BatchData data;
 	private String macroChosen;
 	private String directoryOut;
 	private String directoryIn;
@@ -109,9 +102,6 @@ public class BatchWindow extends JFrame {
 	private Map<String, Long> userIds;
 	private Set<String> projectIds;
 	private ExperimenterWrapper exp;
-	
-
-	
 
 
 	public BatchWindow(BatchData data) {
@@ -120,7 +110,6 @@ public class BatchWindow extends JFrame {
 		this.setLocationRelativeTo(null);
 		this.data = data;
 		Client client = data.getClient();
-		gate = client.getGateway();
 		try {
 			exp = client.getUser(client.getUser().getUserName());
 		} catch (ExecutionException | ServiceException | AccessException e) {
@@ -141,14 +130,14 @@ public class BatchWindow extends JFrame {
 		JLabel labelGroup = new JLabel("Group Name: ");
 		group.add(labelGroup);
 		group.add(groupList);
-		groupList.addActionListener(new ComboGroupListener());
+		groupList.addItemListener(new ComboGroupListener());
 		group.add(labelGroupName);
 		labelGroupName.setFont(namefont);
 		JPanel groupUsers = new JPanel();
 		JLabel labelUser = new JLabel("User Name: ");
 		groupUsers.add(labelUser);
 		groupUsers.add(userList);
-		userList.addActionListener(new ComboUserListener());
+		userList.addItemListener(new ComboUserListener());
 		// choix du groupe
 		JPanel panelGroup = new JPanel();
 		panelGroup.add(group);
@@ -168,26 +157,30 @@ public class BatchWindow extends JFrame {
 		indata.add(local);
 		local.addItemListener(new EnterInOutListener());
 		//input2a.setLayout(new BoxLayout(input2a, BoxLayout.LINE_AXIS));
-		JLabel labelProjectin = new JLabel("Project Name: ");
-		input2a.add(labelProjectin);
+		JLabel labelProjectIn = new JLabel("Project Name: ");
+		input2a.add(labelProjectIn);
 		input2a.add(projectListIn);
-		projectListIn.addActionListener(new ComboInListener());
-		input2a.add(labelProjectinname);
-		labelProjectinname.setFont(namefont);
-		JLabel labelDatasetin = new JLabel("Dataset Name: ");
-		input2a.add(labelDatasetin);
+		projectListIn.addItemListener(e -> data.setInputProjectId(updateProject(e,
+																				labelProjectInName,
+																				datasetListIn)));
+		input2a.add(labelProjectInName);
+		labelProjectInName.setFont(namefont);
+		JLabel labelDatasetIn = new JLabel("Dataset Name: ");
+		input2a.add(labelDatasetIn);
 		input2a.add(datasetListIn);
-		datasetListIn.addActionListener(new ComboDataInListener());
-		input2a.add(labelDatasetinname);
-		labelDatasetinname.setFont(namefont);
+		JLabel labelInputDataset = new JLabel();
+		datasetListIn.addItemListener(e -> data.setInputDatasetId(updateDataset(e, labelInputDataset)));
+		input2a.add(labelInputDataset);
+		labelInputDataset.setFont(namefont);
 		input2a.add(checkresfileLoadRoi);
 		input2a.add(checkresfileDelRoi);
 
 		//input2b.setLayout(new BoxLayout(input2b, BoxLayout.LINE_AXIS));
 		input2b.add(inputfolder);
 		inputfolder.setMaximumSize(new Dimension(300, 30));
+		JButton inputfolderBtn = new JButton("Images directory");
 		input2b.add(inputfolderBtn);
-		inputfolderBtn.addActionListener(new BoutonInputFolderListener());
+		inputfolderBtn.addActionListener(e -> chooseDirectory(inputfolder));
 		panelInput.add(input1);
 		omero.setSelected(true);
 		panelInput.setLayout(new BoxLayout(panelInput, BoxLayout.PAGE_AXIS));
@@ -198,8 +191,9 @@ public class BatchWindow extends JFrame {
 		JPanel macro1 = new JPanel();
 		macro1.add(macro);
 		macro.setMaximumSize(new Dimension(300, 30));
+		JButton macroBtn = new JButton("Macro file");
 		macro1.add(macroBtn);
-		macroBtn.addActionListener(new BoutonMacroListener());
+		macroBtn.addActionListener(e -> chooseMacro());
 		JPanel macro2 = new JPanel();
 		macro2.setLayout(new BoxLayout(macro2, BoxLayout.LINE_AXIS));
 		macro2.add(checkresfileIma);
@@ -251,13 +245,15 @@ public class BatchWindow extends JFrame {
 		JLabel labelExistproject = new JLabel("Project Name: ");
 		output3a1.add(labelExistproject);
 		output3a1.add(projectListOutExist);
-		projectListOutExist.addActionListener(new ComboOutExistListener());
+		projectListOutExist.addItemListener(e -> data.setInputProjectId(updateProject(e,
+																					  labelExistproject,
+																					  datasetListOutExist)));
 		output3a1.add(labelExistprojectname);
 		labelExistprojectname.setFont(namefont);
 		JLabel labelExistdataset = new JLabel("Dataset Name: ");
 		output3a1.add(labelExistdataset);
 		output3a1.add(datasetListOutExist);
-		datasetListOutExist.addActionListener(new ComboDataOutExistListener());
+		datasetListOutExist.addItemListener(e -> data.setOutputDatasetId(updateDataset(e, labelExistdataset)));
 		output3a1.add(labelExistdatasetname);
 		labelExistdatasetname.setFont(namefont);
 		// diff
@@ -275,8 +271,9 @@ public class BatchWindow extends JFrame {
 		//output3b.setLayout(new BoxLayout(output3b, BoxLayout.LINE_AXIS));
 		output3b.add(directory);
 		directory.setMaximumSize(new Dimension(300, 30));
+		JButton directoryBtn = new JButton("Output directory");
 		output3b.add(directoryBtn);
-		directoryBtn.addActionListener(new BoutonDirectoryListener());
+		directoryBtn.addActionListener(e -> chooseDirectory(directory));
 		//
 		panelOutput.add(output2);
 		panelOutput.setLayout(new BoxLayout(panelOutput, BoxLayout.PAGE_AXIS));
@@ -343,8 +340,7 @@ public class BatchWindow extends JFrame {
 		Map<Long, String> dataname = new HashMap<>();
 
 		if (!username.equals("All members")) {
-			projects.removeIf(project -> project.getOwner().getId() !=
-										 userId.get(username));
+			projects.removeIf(project -> project.getOwner().getId() != userId.get(username));
 		}
 
 		for (ProjectWrapper project : projects) {
@@ -364,46 +360,154 @@ public class BatchWindow extends JFrame {
 	}
 
 
-	class ComboGroupListener implements ActionListener {
-		public void actionPerformed(ActionEvent e) {
-			Client client = data.getClient();
-			String groupName = (String) groupList.getSelectedItem();
-			labelGroupName.setText("ID = " + idgroup.get(groupName));
-			List<ExperimenterWrapper> members = new ArrayList<>();
-			try {
-				GroupWrapper fullGroup = client.getGroup(groupName);
-				members = fullGroup.getExperimenters();
-			} catch (ExecutionException | ServiceException | AccessException exception) {
-				IJ.log(exception.getMessage());
+	private Long updateDataset(ItemEvent e, JLabel label) {
+		Long id = null;
+		if (e.getStateChange() == ItemEvent.SELECTED) {
+			Object source = e.getSource();
+			if (source instanceof JComboBox<?>) {
+				String inputDatasetId = (String) ((JComboBox<?>) source).getSelectedItem();
+				if (inputDatasetId != null) {
+					id = idata.get(inputDatasetId);
+					label.setText("ID = " + id);
+				}
 			}
-			userIds = new HashMap<>();
-			userList.removeAllItems();
-			userList.addItem("All members");
-			for (ExperimenterWrapper member : members) {
-				userList.addItem(member.getUserName());
-				userIds.put(member.getUserName(), member.getId());
+		}
+		return id;
+	}
+
+
+	private Long updateProject(ItemEvent e, JLabel label, JComboBox<String> datasets) {
+		Long id = null;
+		if (e.getStateChange() == ItemEvent.SELECTED) {
+			Object source = e.getSource();
+			if (source instanceof JComboBox<?>) {
+				String projectIdIn = (String) ((JComboBox<?>) source).getSelectedItem();
+				if (projectIdIn != null) {
+					id = idproj.get(projectIdIn);
+					label.setText("ID = " + id);
+					ItemListener[] listeners = datasets.getItemListeners();
+					datasets.removeItemListener(listeners[0]);
+					datasets.removeAllItems();
+					for (Long datasetId : idmap.get(id)) {
+						datasets.addItem(dataname.get(datasetId));
+					}
+					datasets.addItemListener(listeners[0]);
+					datasets.setSelectedIndex(0);
+				}
+			}
+		}
+		return id;
+	}
+
+
+	private void chooseDirectory(JTextField textField) {
+		JFileChooser outputchoice = new JFileChooser();
+		outputchoice.setDialogTitle("Choose the directory");
+		outputchoice.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+		int returnVal = outputchoice.showOpenDialog(null);
+		outputchoice.setAcceptAllFileFilterUsed(false); // ????
+		if (returnVal == JFileChooser.APPROVE_OPTION) {
+			File absdir = new File(outputchoice.getSelectedFile()
+											   .getAbsolutePath());
+			if (absdir.exists() && absdir.isDirectory()) {
+				textField.setText(absdir.toString());
+			} else {
+				////find a way to prevent JFileChooser closure?
+				errorWindow("Output: \nThe directory doesn't exist");
+			}
+		}
+		if (returnVal == JFileChooser.CANCEL_OPTION &&
+			textField.getText().equals("")) {
+			warningWindow("Output: \nNo directory selected");
+		}
+	}
+
+
+	private void chooseMacro() {
+		JFileChooser macrochoice = new JFileChooser();
+		macrochoice.setDialogTitle("Choose the macro file");
+		macrochoice.setFileSelectionMode(JFileChooser.FILES_ONLY);
+		int returnVal = macrochoice.showOpenDialog(null);
+		if (returnVal == JFileChooser.APPROVE_OPTION) {
+			File absfile = new File(macrochoice.getSelectedFile()
+											   .getAbsolutePath());
+			if (absfile.exists() && !absfile.isDirectory()) {
+				macro.setText(absfile.toString());
+			} else {
+				//find a way to prevent JFileChooser closure?
+				warningWindow("Macro: \nThe file doesn't exist"); //new JOptionPane(macrochoice);
+			}
+		}
+		if (returnVal == JFileChooser.CANCEL_OPTION &&
+			macro.getText().equals("")) {
+			// warn user if macro selection canceled without any previous choice
+			warningWindow("Macro: \nNo macro selected");
+		}
+	}
+
+
+	class ComboGroupListener implements ItemListener {
+		public void itemStateChanged(ItemEvent e) {
+			if (e.getStateChange() == ItemEvent.SELECTED) {
+				Client client = data.getClient();
+				String groupName = (String) groupList.getSelectedItem();
+				long id = idgroup.get(groupName);
+				client.switchGroup(id);
+				labelGroupName.setText("ID = " + id);
+				List<ExperimenterWrapper> members = new ArrayList<>();
+				try {
+					GroupWrapper fullGroup = client.getGroup(groupName);
+					members = fullGroup.getExperimenters();
+				} catch (ExecutionException | ServiceException | AccessException exception) {
+					IJ.log(exception.getMessage());
+				}
+				userIds = new HashMap<>();
+				ItemListener[] listeners = userList.getItemListeners();
+				userList.removeItemListener(listeners[0]);
+				userList.removeAllItems();
+				userList.addItem("All members");
+				userList.addItemListener(listeners[0]);
+				for (ExperimenterWrapper member : members) {
+					userList.addItem(member.getUserName());
+					userIds.put(member.getUserName(), member.getId());
+				}
+				userList.setSelectedIndex(0);
 			}
 		}
 
 	}
 
-	class ComboUserListener implements ActionListener {
-		public void actionPerformed(ActionEvent e) {
-			String username = (String) userList.getSelectedItem();
-			List maps = userProjectsAndDatasets(username, userIds);
-			idmap = (Map<Long, ArrayList<Long>>) maps.get(0);
-			projname = (Map<Long, String>) maps.get(1);
-			idproj = hashToMap(projname, idproj);
-			dataname = (Map<Long, String>) maps.get(2);
-			idata = hashToMap(dataname, idata);
-			projectIds = idproj.keySet();
-			projectListIn.removeAllItems();
-			projectListOutNew.removeAllItems();
-			projectListOutExist.removeAllItems();
-			for (String project_id : projectIds) {
-				projectListIn.addItem(project_id);
-				projectListOutNew.addItem(project_id);
-				projectListOutExist.addItem(project_id);
+	class ComboUserListener implements ItemListener {
+		public void itemStateChanged(ItemEvent e) {
+			if (e.getStateChange() == ItemEvent.SELECTED) {
+				String username = (String) userList.getSelectedItem();
+				List maps = userProjectsAndDatasets(username, userIds);
+				idmap = (Map<Long, ArrayList<Long>>) maps.get(0);
+				projname = (Map<Long, String>) maps.get(1);
+				idproj = hashToMap(projname, idproj);
+				dataname = (Map<Long, String>) maps.get(2);
+				idata = hashToMap(dataname, idata);
+				projectIds = idproj.keySet();
+				ItemListener[] listeners1 = projectListIn.getItemListeners();
+				projectListIn.removeItemListener(listeners1[0]);
+				ItemListener[] listeners2 = projectListOutNew.getItemListeners();
+				projectListOutNew.removeItemListener(listeners2[0]);
+				ItemListener[] listeners3 = projectListOutExist.getItemListeners();
+				projectListOutExist.removeItemListener(listeners3[0]);
+				projectListIn.removeAllItems();
+				projectListOutNew.removeAllItems();
+				projectListOutExist.removeAllItems();
+				for (String project_id : projectIds) {
+					projectListIn.addItem(project_id);
+					projectListOutNew.addItem(project_id);
+					projectListOutExist.addItem(project_id);
+				}
+				projectListIn.addItemListener(listeners1[0]);
+				projectListIn.setSelectedIndex(0);
+				projectListOutNew.addItemListener(listeners2[0]);
+				projectListOutNew.setSelectedIndex(0);
+				projectListOutExist.addItemListener(listeners3[0]);
+				projectListOutExist.setSelectedIndex(0);
 			}
 		}
 
@@ -425,133 +529,10 @@ public class BatchWindow extends JFrame {
 
 	}
 
-	class ComboInListener implements ActionListener {
-		public void actionPerformed(ActionEvent e) {
-			int index = Math.max(0, projectListIn.getSelectedIndex());
-			String projectIdIn = projectListIn.getItemAt(index);
-			labelProjectinname.setText("ID = " + idproj.get(projectIdIn));
-			datasetListIn.removeAllItems();
-			for (Long datasetId : idmap.get(idproj.get(projectIdIn))) {
-				datasetListIn.addItem(dataname.get(datasetId));
-			}
-		}
-
-	}
-
-	class ComboDataInListener implements ActionListener {
-		public void actionPerformed(ActionEvent e) {
-			String dataset_id_in = (String) datasetListIn.getSelectedItem();
-			labelDatasetinname.setText(
-					"ID = " + idata.get(dataset_id_in));
-		}
-
-	}
-
-	class ComboOutExistListener implements ActionListener {
-		public void actionPerformed(ActionEvent e) {
-			int index = Math.max(0, projectListOutExist.getSelectedIndex());
-			String projectIdOut = projectListOutExist.getItemAt(index);
-			labelExistprojectname.setText("ID = " + idproj.get(projectIdOut));
-			datasetListOutExist.removeAllItems();
-			for (Long dataset_id : idmap.get(idproj.get(projectIdOut))) {
-				datasetListOutExist.addItem(dataname.get(dataset_id));
-			}
-		}
-
-	}
-
-	class ComboDataOutExistListener implements ActionListener {
-		public void actionPerformed(ActionEvent e) {
-			String dataset_id_out = (String) datasetListOutExist
-					.getSelectedItem();
-			labelExistdatasetname.setText(
-					"ID = " + idata.get(dataset_id_out));
-		}
-
-	}
-
 	class ComboOutNewListener implements ActionListener {
 		public void actionPerformed(ActionEvent e) {
-			String projectIdOut = (String) projectListOutNew
-					.getSelectedItem();
-			labelNewprojectname.setText(
-					"ID = " + idproj.get(projectIdOut));
-		}
-
-	}
-
-	class BoutonInputFolderListener implements ActionListener {
-		public void actionPerformed(ActionEvent e) {
-			JFileChooser inputchoice = new JFileChooser();
-			inputchoice.setDialogTitle("Choose the input directory");
-			inputchoice.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
-			int returnVal = inputchoice.showOpenDialog(null);
-			if (returnVal == JFileChooser.APPROVE_OPTION) {
-				File absindir = new File(inputchoice.getSelectedFile()
-													.getAbsolutePath());
-				// verify if record exist (handwritten case)
-				if (absindir.exists() && absindir.isDirectory()) {
-					inputfolder.setText(absindir.toString());
-				} else {
-					//find a way to prevent JFileChooser closure?
-					errorWindow("Input: \nThe directory doesn't exist"); // new JOptionPane(inputchoice);
-				}
-			}
-			if (returnVal == JFileChooser.CANCEL_OPTION &&
-				inputfolder.getText() == "") {
-				// warn user if macro selection canceled without any previous choice
-				warningWindow("Input: \nNo directory selected");
-			}
-		}
-
-	}
-
-	class BoutonMacroListener implements ActionListener {
-		public void actionPerformed(ActionEvent e) {
-			JFileChooser macrochoice = new JFileChooser();
-			macrochoice.setDialogTitle("Choose the macro file");
-			macrochoice.setFileSelectionMode(JFileChooser.FILES_ONLY);
-			int returnVal = macrochoice.showOpenDialog(null);
-			if (returnVal == JFileChooser.APPROVE_OPTION) {
-				File absfile = new File(macrochoice.getSelectedFile()
-												   .getAbsolutePath());
-				if (absfile.exists() && !absfile.isDirectory()) {
-					macro.setText(absfile.toString());
-				} else {
-					//find a way to prevent JFileChooser closure?
-					warningWindow("Macro: \nThe file doesn't exist"); //new JOptionPane(macrochoice);
-				}
-			}
-			if (returnVal == JFileChooser.CANCEL_OPTION &&
-				macro.getText() == "") {
-				// warn user if macro selection canceled without any previous choice
-				warningWindow("Macro: \nNo macro selected");
-			}
-		}
-
-	}
-
-	class BoutonDirectoryListener implements ActionListener {
-		public void actionPerformed(ActionEvent e) {
-			JFileChooser outputchoice = new JFileChooser();
-			outputchoice.setDialogTitle("Choose the output directory");
-			outputchoice.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
-			int returnVal = outputchoice.showOpenDialog(null);
-			outputchoice.setAcceptAllFileFilterUsed(false); // ????
-			if (returnVal == JFileChooser.APPROVE_OPTION) {
-				File absdir = new File(outputchoice.getSelectedFile()
-												   .getAbsolutePath());
-				if (absdir.exists() && absdir.isDirectory()) {
-					directory.setText(absdir.toString());
-				} else {
-					////find a way to prevent JFileChooser closure?
-					errorWindow("Output: \nThe directory doesn't exist");
-				}
-			}
-			if (returnVal == JFileChooser.CANCEL_OPTION &&
-				directory.getText() == "") {
-				warningWindow("Output: \nNo directory selected");
-			}
+			String projectIdOut = (String) projectListOutNew.getSelectedItem();
+			labelNewprojectname.setText("ID = " + idproj.get(projectIdOut));
 		}
 
 	}
@@ -738,10 +719,10 @@ public class BatchWindow extends JFrame {
 						data.setDirectoryIn(directoryIn);
 						data.setDirectoryOut(directoryOut);
 					}
-					
+
 					data.setMacro(macroChosen);
-					
-					ProcessingDialog processingDialog = new ProcessingDialog();
+
+					ProgressDialog processingDialog = new ProgressDialog();
 					BatchRunner progress = new BatchRunner(data, processingDialog);
 					progress.start();
 				} catch (Exception e2) {
