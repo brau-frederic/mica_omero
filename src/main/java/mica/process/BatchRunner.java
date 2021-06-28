@@ -14,6 +14,7 @@ import ij.WindowManager;
 import ij.gui.Roi;
 import ij.plugin.frame.RoiManager;
 import mica.BatchData;
+import mica.BatchResults;
 import omero.gateway.SecurityContext;
 import omero.gateway.exception.DSAccessException;
 import omero.gateway.exception.DSOutOfServiceException;
@@ -391,7 +392,7 @@ public class BatchRunner extends Thread {
 		int index = 0;
 		for (ImageWrapper image : images) {
 			// Open the image
-			setDialogState("image " + (index + 1) + "/" + images.size());
+			setState("image " + (index + 1) + "/" + images.size());
 			long id = image.getId();
 			imageIds.add(id);
 			long gid = context.getGroupID();
@@ -543,7 +544,7 @@ public class BatchRunner extends Thread {
 			// Open the image
 			//IJ.open(Image);
 			//IJ.run("Stack to Images");
-			setDialogState("image " + (index + 1) + "/" + images.size());
+			setState("image " + (index + 1) + "/" + images.size());
 			ImagePlus imp = IJ.openImage(Image);
 			long id = imp.getID();
 			IJ.run("Bio-Formats Importer",

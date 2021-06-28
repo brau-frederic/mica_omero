@@ -19,6 +19,13 @@ public class BatchData {
 	private long outputDatasetId;
 	private long inputProjectId;
 	private long outputProjectId;
+	private long projectIdOut;
+	private String directoryIn;
+	private String directoryOut;
+	private String macroChosen;
+	private String extensionChosen;
+	private String nameNewDataSet;
+
 
 	// suffixe?
 
