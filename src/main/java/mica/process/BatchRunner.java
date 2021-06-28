@@ -39,6 +39,7 @@ public class BatchRunner extends Thread {
 
 
 	public BatchRunner(BatchData data) {
+		super();
 		this.data = data;
 		this.progress = new ProgressLog(Logger.getLogger(getClass().getName()));
 		this.bResults = null;
@@ -46,6 +47,7 @@ public class BatchRunner extends Thread {
 
 
 	public BatchRunner(BatchData data, ProcessingProgress progress) {
+		super();
 		this.data = data;
 		this.progress = progress;
 		this.bResults = null;
@@ -77,7 +79,7 @@ public class BatchRunner extends Thread {
 	 *
 	 * @see #start()
 	 * @see #stop()
-	 * @see #Thread(ThreadGroup, Runnable, String)
+	 * @see Thread#Thread(ThreadGroup, Runnable, String)
 	 */
 	@Override
 	public void run() {
