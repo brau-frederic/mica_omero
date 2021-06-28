@@ -22,7 +22,6 @@ import omero.gateway.facility.ROIFacility;
 import omero.gateway.model.ROIData;
 import org.apache.commons.io.FilenameUtils;
 
-import javax.swing.*;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -142,7 +141,8 @@ public class BatchRunner extends Thread {
 				ProjectWrapper project = client.getProject(data.getProjectIdOut());
 				DatasetWrapper dataset = project
 						.addDataset(client, data.getNameNewDataSet(), "");
-				inputDatasetId = create_dataset_in_project(client.getGateway(), client.getCtx(), dataset, project); // La fonction n'est pas trouvable, tu comptes en utiliser une autre?
+				inputDatasetId = create_dataset_in_project(client.getGateway(), client
+						.getCtx(), dataset, project); // La fonction n'est pas trouvable, tu comptes en utiliser une autre?
 			}
 
 			if (Boolean.TRUE.equals(saveOnOmero)) {
@@ -151,11 +151,11 @@ public class BatchRunner extends Thread {
 					imagesIds = importImagesInDataset(pathsImages, roisL, saveROIs);
 				}
 				if (Boolean.FALSE.equals(saveImage) &&
-				Boolean.TRUE.equals(saveROIs)) {
+					Boolean.TRUE.equals(saveROIs)) {
 					imagesIds = importRoisInImage(imaIds, roisL);
 				}
 				if (Boolean.TRUE.equals(results) && Boolean.FALSE.equals(saveImage) &&
-				Boolean.FALSE.equals(saveROIs)) {
+					Boolean.FALSE.equals(saveROIs)) {
 					setProgress("Attachement of results files...");
 
 					uploadTagFiles(pathsAttach, imaIds);
@@ -196,11 +196,11 @@ public class BatchRunner extends Thread {
 		List<Long> imageIds = new ArrayList<>();
 
 		Client client = data.getClient();
-		Long datasetId = data.getOutputDatasetId()
+		Long datasetId = data.getOutputDatasetId();
 		DatasetWrapper dataset = client.getDataset(datasetId);
 		for (String path : pathsImages) {
-			List<ImageWrapper> newImages = dataset.importImages(client, path);
-			newImages.forEach(image -> imageIds.add(image.getId()));
+			List<Long> newIds = dataset.importImage(client, path);
+			newIds.forEach(id -> imageIds.add(id));
 		}
 
 		int indice = 0;
@@ -369,13 +369,13 @@ public class BatchRunner extends Thread {
 
 
 	void run_macro(BatchResults bRes,
-								   List<ImageWrapper> images,
-								   SecurityContext context,
-								   String macroChosen,
-								   String extensionChosen,
-								   String dir,
-								   Boolean results,
-								   Boolean savRois)
+				   List<ImageWrapper> images,
+				   SecurityContext context,
+				   String macroChosen,
+				   String extensionChosen,
+				   String dir,
+				   Boolean results,
+				   Boolean savRois)
 	throws ServiceException, AccessException, ExecutionException {
 		//""" Run a macro on images and save the result """
 		Client client = data.getClient();
@@ -424,7 +424,7 @@ public class BatchRunner extends Thread {
 					rm.runCommand("Save", dir + File.separator + title + "_" +
 										  todayDate() + "_RoiSet.zip");
 					if (Boolean.TRUE.equals(saveImage)
-							) {  // image results expected
+					) {  // image results expected
 						if (Boolean.TRUE.equals(results)) {
 							saveAndCloseWithRes(res, attach);
 						} else {
@@ -443,7 +443,7 @@ public class BatchRunner extends Thread {
 						if (roi.getProperties() != null) verif = true;
 					}
 					if (Boolean.TRUE.equals(saveImage)
-							) { // image results expected
+					) { // image results expected
 						// sauvegarde 3D
 						if (Boolean.TRUE.equals(verif)) {
 							if (Boolean.TRUE.equals(results)) {
@@ -522,12 +522,12 @@ public class BatchRunner extends Thread {
 
 
 	void run_macro_on_local_images(BatchResults bRes,
-												   List<String> images,
-												   String macroChosen,
-												   String extensionChosen,
-												   String dir,
-												   Boolean results,
-												   Boolean savRois) {
+								   List<String> images,
+								   String macroChosen,
+								   String extensionChosen,
+								   String dir,
+								   Boolean results,
+								   Boolean savRois) {
 		//""" Run a macro on images from local computer and save the result """
 		int size = images.size();
 		String[] pathsImages = new String[size];
@@ -537,7 +537,7 @@ public class BatchRunner extends Thread {
 		boolean saveOnLocal = data.isOutputOnLocal();
 		IJ.run("Close All");
 		String appel = "0";
-		List <Collection<ROIData>> mROIS = new ArrayList<>();
+		List<Collection<ROIData>> mROIS = new ArrayList<>();
 		Boolean imaRes = true;
 		int index = 0;
 		for (String Image : images) {
@@ -601,7 +601,7 @@ public class BatchRunner extends Thread {
 						if (roi.getProperties() != null) verif = true;
 					}
 					if (Boolean.TRUE.equals(saveImage)
-							) {  // image results expected
+					) {  // image results expected
 						// sauvegarde 3D
 						if (Boolean.TRUE.equals(verif)) {
 							if (Boolean.TRUE.equals(results)) {
