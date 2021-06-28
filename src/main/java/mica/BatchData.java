@@ -29,6 +29,7 @@ public class BatchData {
 
 	// suffixe?
 
+
 	public BatchData(Client client) {
 		this.client = client;
 	}
@@ -108,6 +109,7 @@ public class BatchData {
 		return client;
 	}
 
+
 	public boolean shouldSaveImage() {
 		return saveImage;
 	}
@@ -116,6 +118,7 @@ public class BatchData {
 	public void setSaveImage(boolean saveImage) {
 		this.saveImage = saveImage;
 	}
+
 
 	public boolean shouldLoadROIs() {
 		return loadROIs;
@@ -126,6 +129,7 @@ public class BatchData {
 		this.loadROIs = loadROIs;
 	}
 
+
 	public boolean shouldClearROIs() {
 		return clearROIs;
 	}
@@ -134,6 +138,7 @@ public class BatchData {
 	public void setClearROIS(boolean clearROIs) {
 		this.clearROIs = clearROIs;
 	}
+
 
 	public String getDirectoryIn() {
 		return directoryIn;
@@ -144,6 +149,7 @@ public class BatchData {
 		this.directoryIn = directoryIn;
 	}
 
+
 	public String getDirectoryOut() {
 		return directoryOut;
 	}
@@ -152,6 +158,7 @@ public class BatchData {
 	public void setDirectoryOut(String directoryOut) {
 		this.directoryOut = directoryOut;
 	}
+
 
 	public String getMacro() {
 		return macroChosen;
@@ -162,6 +169,7 @@ public class BatchData {
 		this.macroChosen = macroChosen;
 	}
 
+
 	public String getExtension() {
 		return extensionChosen;
 	}
@@ -170,6 +178,7 @@ public class BatchData {
 	public void setExtension(String extensionChosen) {
 		this.extensionChosen = extensionChosen;
 	}
+
 
 	public boolean shouldnewDataSet() {
 		return newDataSet;
@@ -180,6 +189,7 @@ public class BatchData {
 		this.newDataSet = newDataSet;
 	}
 
+
 	public String getNameNewDataSet() {
 		return nameNewDataSet;
 	}
@@ -188,6 +198,7 @@ public class BatchData {
 	public void setNameNewDataSet(String nameNewDataSet) {
 		this.nameNewDataSet = nameNewDataSet;
 	}
+
 
 	public long getProjectIdOut() {
 		return projectIdOut;
@@ -198,6 +209,7 @@ public class BatchData {
 		this.projectIdOut = projectIdOut;
 	}
 
+
 	public boolean isOutputOnOMERO() {
 		return outputOnOMERO;
 	}
@@ -207,6 +219,7 @@ public class BatchData {
 		this.outputOnOMERO = outputOnOMERO;
 	}
 
+
 	public boolean isOutputOnLocal() {
 		return outputOnLocal;
 	}
@@ -215,4 +228,5 @@ public class BatchData {
 	public void setOutputOnLocal(boolean outputOnLocal) {
 		this.outputOnLocal = outputOnLocal;
 	}
+
 }

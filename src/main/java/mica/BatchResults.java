@@ -11,7 +11,7 @@ private List<String> pathsImages;
 private List<String> pathsAttach;
 private List<Collection<ROIData>> mROIS;
 private List<Long> imageIds;
-private Boolean imaRes;
+private boolean imaRes;
 
 public BatchResults() {
     // Crée un objet BatchResults
@@ -33,7 +33,7 @@ public void setImageIds(List<Long> imageIds ) {
     this.imageIds = imageIds;
 }
 
-public void setImaRes(Boolean imaRes ) {
+public void setImaRes(boolean imaRes ) {
     this.imaRes = imaRes;
 }
 
@@ -53,7 +53,7 @@ public List<Long> getImageIds() {
     return imageIds;
 }
 
-public Boolean getImaRes() {
+public boolean getImaRes() {
     return imaRes;
 }
 
