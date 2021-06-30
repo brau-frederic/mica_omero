@@ -30,6 +30,10 @@ import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Logger;
 
+import javax.swing.JOptionPane;
+import static javax.swing.JOptionPane.showMessageDialog;
+
+
 public class BatchRunner extends Thread {
 
 	private final BatchData data;
@@ -87,7 +91,6 @@ public class BatchRunner extends Thread {
 		boolean saveOnOmero = data.isOutputOnOMERO();
 		boolean saveOnLocal = data.isOutputOnLocal();
 		long inputDatasetId = data.getInputDatasetId();
-		long outputDatasetId = data.getOutputDatasetId();
 		String macro = data.getMacro();
 		String extension = data.getExtension();
 		String directoryOut = data.getDirectoryOut();
@@ -98,7 +101,7 @@ public class BatchRunner extends Thread {
 		List<Collection<ROIData>> roisL;
 		List<Long> imaIds;
 		List<Long> imagesIds;
-		Boolean imaRes;
+		boolean imaRes;
 
 
 		try {
@@ -109,7 +112,7 @@ public class BatchRunner extends Thread {
 				data.setDirectoryOut(directoryOutf.toString());
 			}
 
-			if (Boolean.TRUE.equals(saveOnOmero)) {
+			if (saveOnOmero) {
 				setProgress("Images recovery from Omero...");
 				DatasetWrapper dataset = client.getDataset(inputDatasetId);
 				List<ImageWrapper> images = dataset.getImages(client);
@@ -136,7 +139,7 @@ public class BatchRunner extends Thread {
 				imaRes = bResults.getImaRes();
 			}
 
-			if (Boolean.TRUE.equals((data.shouldnewDataSet()) && Boolean.FALSE.equals(imaRes)) {
+			if ((data.shouldnewDataSet() && imaRes)) {
 				setProgress("New dataset creation...");
 				ProjectWrapper project = client.getProject(data.getProjectIdOut());
 				DatasetWrapper dataset = project
@@ -145,32 +148,32 @@ public class BatchRunner extends Thread {
 						.getCtx(), dataset, project); // La fonction n'est pas trouvable, tu comptes en utiliser une autre?
 			}
 
-			if (Boolean.TRUE.equals(saveOnOmero)) {
+			if (saveOnOmero) {
 				setProgress("import on omero...");
-				if (Boolean.TRUE.equals(imaRes) && Boolean.TRUE.equals(saveImage)) {
+				if (imaRes && saveImage) {
 					imagesIds = importImagesInDataset(pathsImages, roisL, saveROIs);
 				}
-				if (Boolean.FALSE.equals(saveImage) &&
-					Boolean.TRUE.equals(saveROIs)) {
+				if (saveImage &&
+					saveROIs) {
 					imagesIds = importRoisInImage(imaIds, roisL);
 				}
-				if (Boolean.TRUE.equals(results) && Boolean.FALSE.equals(saveImage) &&
-					Boolean.FALSE.equals(saveROIs)) {
+				if (results && saveImage &&
+					saveROIs) {
 					setProgress("Attachement of results files...");
 
 					uploadTagFiles(pathsAttach, imaIds);
-				} else if (Boolean.TRUE.equals(results) && Boolean.TRUE.equals(saveImage)) {
+				} else if (results && saveImage) {
 					setProgress("Attachement of results files...");
 					uploadTagFiles(pathsAttach, imagesIds);
 				}
-				if (Boolean.FALSE.equals(imaRes) && Boolean.TRUE.equals(saveImage)) {
-					errorWindow("Impossible to save: \nOutput image must be different than input image");
+				if (imaRes && saveImage) {
+					showMessageDialog(null, "Impossible to save: \nOutput image must be different than input image", "Warning", JOptionPane.WARNING_MESSAGE);
 				}
 			}
 
-			if (Boolean.FALSE.equals(saveOnLocal) {
+			if (saveOnLocal) {
 				setProgress("Temporary directory deletion...");
-				delete_temp(directoryOut);
+				deleteTemp(directoryOut);
 			}
 
 			setDone();
@@ -180,7 +183,7 @@ public class BatchRunner extends Thread {
 				this.dispose();
 				IJ.run("Close");
 			}
-			errorWindow(e3.getMessage());
+			showMessageDialog(null, e3.getMessage(), "Warning", JOptionPane.WARNING_MESSAGE);
 		}
 	}
 
@@ -189,7 +192,7 @@ public class BatchRunner extends Thread {
 	// dataset.importImages(client, pathsImages);
 	public List<Long> importImagesInDataset(List<String> pathsImages,
 											List<Collection<ROIData>> roisL,
-											Boolean saveRois)
+											boolean saveRois)
 	throws Exception {
 		//""" Import images in Omero server from pathsImages and return ids of these images in datasetId """
 		//pathsImages : String[]
@@ -205,7 +208,7 @@ public class BatchRunner extends Thread {
 
 		int indice = 0;
 		for (Long id : imageIds) {
-			if (Boolean.TRUE.equals(saveRois)) {
+			if (saveRois) {
 				indice = uploadROIS(roisL, id, indice);
 			}
 		}
@@ -374,13 +377,13 @@ public class BatchRunner extends Thread {
 				   String macroChosen,
 				   String extensionChosen,
 				   String dir,
-				   Boolean results,
-				   Boolean savRois)
+				   boolean results,
+				   boolean savRois)
 	throws ServiceException, AccessException, ExecutionException {
 		//""" Run a macro on images and save the result """
 		Client client = data.getClient();
 		int size = images.size();
-		Boolean imaRes = true;
+		boolean imaRes = true;
 		String[] pathsImages = new String[size];
 		String[] pathsAttach = new String[size];
 		boolean saveImage = data.shouldSaveImage();
@@ -416,37 +419,37 @@ public class BatchRunner extends Thread {
 			IJ.runMacroFile(macroChosen, appel);
 			appel = "1";
 			// Save and Close the various components
-			if (Boolean.TRUE.equals(savRois)) {
+			if (savRois) {
 				// save of ROIs
 				RoiManager rm = RoiManager.getInstance2();
-				if (Boolean.TRUE.equals(data.isOutputOnLocal())) {  //  local save
+				if (data.isOutputOnLocal()) {  //  local save
 					rm.runCommand("Deselect"); // deselect ROIs to save them all
 					rm.runCommand("Save", dir + File.separator + title + "_" +
 										  todayDate() + "_RoiSet.zip");
-					if (Boolean.TRUE.equals(saveImage)
-					) {  // image results expected
-						if (Boolean.TRUE.equals(results)) {
+					if (saveImage)
+					{  // image results expected
+						if (results) {
 							saveAndCloseWithRes(res, attach);
 						} else {
 							saveAndCloseWithoutRes(res);
 						}
 					} else {
-						if (Boolean.TRUE.equals(results)) {
+						if (results) {
 							saveResultsOnly(attach);
 						}
 					}
 				}
-				if (Boolean.TRUE.equals(saveOnOmero)) { // save on Omero
+				if (saveOnOmero) { // save on Omero
 					Roi[] rois = rm.getRoisAsArray();
 					boolean verif = false;
 					for (Roi roi : rois) {
 						if (roi.getProperties() != null) verif = true;
 					}
-					if (Boolean.TRUE.equals(saveImage)
-					) { // image results expected
+					if (saveImage)
+					 { // image results expected
 						// sauvegarde 3D
-						if (Boolean.TRUE.equals(verif)) {
-							if (Boolean.TRUE.equals(results)) {
+						if (verif) {
+							if (results) {
 								saveAndCloseWithRes(res, attach);
 								mROIS = save_ROIS_3D(mROIS, id, imp);
 							} else {
@@ -455,7 +458,7 @@ public class BatchRunner extends Thread {
 							}
 						} else {
 							// sauvegarde 2D
-							if (Boolean.TRUE.equals(results)) {
+							if (results) {
 								saveAndCloseWithRes(res, attach);
 								mROIS = saveROIS2D(mROIS, id, imp);
 							} else {
@@ -465,8 +468,8 @@ public class BatchRunner extends Thread {
 						}
 					} else {
 						// sauvegarde 3D
-						if (Boolean.TRUE.equals(verif)) {
-							if (Boolean.TRUE.equals(results)) {
+						if (verif) {
+							if (results) {
 								saveResultsOnly(attach);
 								mROIS = save_ROIS_3D(mROIS, id, imp);
 							} else {
@@ -474,7 +477,7 @@ public class BatchRunner extends Thread {
 							}
 						} else {
 							// sauvegarde 2D
-							if (Boolean.TRUE.equals(results)) {
+							if (results) {
 								saveResultsOnly(attach);
 								mROIS = saveROIS2D(mROIS, id, imp);
 							} else {
@@ -485,14 +488,14 @@ public class BatchRunner extends Thread {
 					}
 				}
 			} else {
-				if (Boolean.TRUE.equals(saveImage)) { // image results expected
-					if (Boolean.TRUE.equals(results)) {
+				if (saveImage) { // image results expected
+					if (results) {
 						saveAndCloseWithRes(res, attach);
 					} else {
 						saveAndCloseWithoutRes(res);
 					}
 				} else {
-					if (Boolean.TRUE.equals(results)) {
+					if (results) {
 						saveResultsOnly(attach);
 					}
 				}
@@ -526,8 +529,8 @@ public class BatchRunner extends Thread {
 								   String macroChosen,
 								   String extensionChosen,
 								   String dir,
-								   Boolean results,
-								   Boolean savRois) {
+								   boolean results,
+								   boolean savRois) {
 		//""" Run a macro on images from local computer and save the result """
 		int size = images.size();
 		String[] pathsImages = new String[size];
@@ -538,7 +541,7 @@ public class BatchRunner extends Thread {
 		IJ.run("Close All");
 		String appel = "0";
 		List<Collection<ROIData>> mROIS = new ArrayList<>();
-		Boolean imaRes = true;
+		boolean imaRes = true;
 		int index = 0;
 		for (String Image : images) {
 			// Open the image
@@ -575,36 +578,36 @@ public class BatchRunner extends Thread {
 			IJ.runMacroFile(macroChosen, appel);
 			appel = "1";
 			// Save and Close the various components
-			if (Boolean.TRUE.equals(savRois)) {
+			if (savRois) {
 				//  save of ROIs
 				RoiManager rm = RoiManager.getInstance2();
-				if (Boolean.TRUE.equals(saveOnLocal)) {  //  local save
+				if (saveOnLocal) {  //  local save
 					rm.runCommand("Deselect"); // deselect ROIs to save them all
 					rm.runCommand("Save", dir + File.separator + title + "_" +
 										  todayDate() + "_RoiSet.zip");
-					if (Boolean.TRUE.equals(saveImage)) {
-						if (Boolean.TRUE.equals(results)) {
+					if (saveImage) {
+						if (results) {
 							saveAndCloseWithRes(res, attach);
 						} else {
 							saveAndCloseWithoutRes(res);
 						}
 					} else {
-						if (Boolean.TRUE.equals(results)) {
+						if (results) {
 							saveResultsOnly(attach);
 						}
 					}
 				}
-				if (Boolean.TRUE.equals(saveOnOmero)) {  // save on Omero
+				if (saveOnOmero) {  // save on Omero
 					Roi[] rois = rm.getRoisAsArray();
 					boolean verif = false;
 					for (Roi roi : rois) {
 						if (roi.getProperties() != null) verif = true;
 					}
-					if (Boolean.TRUE.equals(saveImage)
-					) {  // image results expected
+					if (saveImage)
+					 {  // image results expected
 						// sauvegarde 3D
-						if (Boolean.TRUE.equals(verif)) {
-							if (Boolean.TRUE.equals(results)) {
+						if (verif) {
+							if (results) {
 								saveAndCloseWithRes(res, attach);
 								mROIS = save_ROIS_3D(mROIS, id, imp);
 							} else {
@@ -613,7 +616,7 @@ public class BatchRunner extends Thread {
 							}
 						} else {
 							// sauvegarde 2D
-							if (Boolean.TRUE.equals(results)) {
+							if (results) {
 								saveAndCloseWithRes(res, attach);
 								mROIS = saveROIS2D(mROIS, id, imp);
 							} else {
@@ -623,8 +626,8 @@ public class BatchRunner extends Thread {
 						}
 					} else {
 						// sauvegarde 3D
-						if (Boolean.TRUE.equals(verif)) {
-							if (Boolean.TRUE.equals(results)) {
+						if (verif) {
+							if (results) {
 								saveResultsOnly(attach);
 								mROIS = save_ROIS_3D(mROIS, id, imp);
 							} else {
@@ -632,7 +635,7 @@ public class BatchRunner extends Thread {
 							}
 						} else {
 							// sauvegarde 2D
-							if (Boolean.TRUE.equals(results)) {
+							if (results) {
 								saveResultsOnly(attach);
 								mROIS = saveROIS2D(mROIS, id, imp);
 							} else {
@@ -643,14 +646,14 @@ public class BatchRunner extends Thread {
 					}
 				}
 			} else {
-				if (Boolean.TRUE.equals(saveImage)) {  // image results expected
-					if (Boolean.TRUE.equals(results)) {
+				if (saveImage) {  // image results expected
+					if (results) {
 						saveAndCloseWithRes(res, attach);
 					} else {
 						saveAndCloseWithoutRes(res);
 					}
 				} else {
-					if (Boolean.TRUE.equals(results)) {
+					if (results) {
 						saveResultsOnly(attach);
 					}
 				}
@@ -729,9 +732,9 @@ public class BatchRunner extends Thread {
 	}
 
 
-	public void delete_temp(String tmp_dir) {
+	public void deleteTemp(String tmpDir) {
 		//""" Delete the local copy of temporary files and directory """
-		File dir = new File(tmp_dir);
+		File dir = new File(tmpDir);
 		File[] entries = dir.listFiles();
 		for (File entry : entries) {
 			entry.delete();

@@ -10,7 +10,6 @@ import fr.igred.omero.repository.ProjectWrapper;
 import ij.IJ;
 import mica.BatchData;
 import mica.process.BatchRunner;
-import omero.gateway.Gateway;
 
 import javax.swing.*;
 import java.awt.Container;
@@ -93,14 +92,10 @@ public class BatchWindow extends JFrame {
 	private Long outputDatasetId;
 	private Long projectIdOut;
 	private String datasetNameOut;
-	private Map<Long, ArrayList<Long>> idmap;
-	private Map<Long, String> projname;
-	private Map<Long, String> dataname;
 	private Map<String, Long> idgroup = new HashMap<>();
-	private Map<String, Long> idproj = new HashMap<>();
-	private Map<String, Long> idata = new HashMap<>();
-	private Map<String, Long> userIds;
-	private Set<String> projectIds;
+	private List<ProjectWrapper> idproj;
+	private List<DatasetWrapper> idata;
+	private Map<String, Long> userIds = new HashMap<>();
 	private ExperimenterWrapper exp;
 
 
@@ -144,7 +139,7 @@ public class BatchWindow extends JFrame {
 		panelGroup.add(groupUsers);
 		panelGroup.setBorder(BorderFactory.createTitledBorder("Group"));
 		cp.add(panelGroup);
-
+	
 		//input1.setLayout(new BoxLayout(input1, BoxLayout.LINE_AXIS));
 		JPanel input1 = new JPanel();
 		JLabel labelEntertype = new JLabel("Where to get files to analyze :");
@@ -325,38 +320,28 @@ public class BatchWindow extends JFrame {
 	}
 
 
-	public List userProjectsAndDatasets(String username,
+	public void userProjectsAndDatasets(String username,
 										Map<String, Long> userId) {
 		Client client = data.getClient();
-		List<ProjectWrapper> projects = new ArrayList<>();
+		idproj = new ArrayList<>();
 		try {
-			projects = client.getProjects();
+			idproj = client.getProjects();
 		} catch (ServiceException | AccessException exception) {
 			IJ.log(exception.getMessage());
 		}
 
-		Map<Long, ArrayList<Long>> idmap = new HashMap<>();
-		Map<Long, String> projname = new HashMap<>();
-		Map<Long, String> dataname = new HashMap<>();
-
 		if (!username.equals("All members")) {
-			projects.removeIf(project -> project.getOwner().getId() != userId.get(username));
+			idproj.removeIf(project -> project.getOwner().getId() != userId.get(username));
 		}
 
-		for (ProjectWrapper project : projects) {
-			Long projectId = project.getId();
-			idmap.put(projectId, new ArrayList<>());
-			String projectName = project.getName();
-			projname.put(projectId, projectName);
-			List<DatasetWrapper> datasets = project.getDatasets();
-			for (DatasetWrapper dataset : datasets) {
-				Long datasetId = dataset.getId();
-				String datasetName = dataset.getName();
-				idmap.get(projectId).add(datasetId);
-				dataname.put(datasetId, datasetName);
+		idata = new ArrayList<>();
+
+		for (ProjectWrapper project : idproj) {
+			for (DatasetWrapper dataset : project.getDatasets()) {
+				idata.add(dataset);
 			}
 		}
-		return new ArrayList<>(Arrays.asList(idmap, projname, dataname));
+	
 	}
 
 
@@ -365,11 +350,11 @@ public class BatchWindow extends JFrame {
 		if (e.getStateChange() == ItemEvent.SELECTED) {
 			Object source = e.getSource();
 			if (source instanceof JComboBox<?>) {
-				String inputDatasetId = (String) ((JComboBox<?>) source).getSelectedItem();
-				if (inputDatasetId != null) {
-					id = idata.get(inputDatasetId);
-					label.setText("ID = " + id);
-				}
+				int inputDatasetId = ((JComboBox<?>) source).getSelectedIndex();
+				DatasetWrapper dataset = idata.get(inputDatasetId);
+				id = dataset.getId();
+				label.setText("ID = " + id);
+				
 			}
 		}
 		return id;
@@ -381,19 +366,18 @@ public class BatchWindow extends JFrame {
 		if (e.getStateChange() == ItemEvent.SELECTED) {
 			Object source = e.getSource();
 			if (source instanceof JComboBox<?>) {
-				String projectIdIn = (String) ((JComboBox<?>) source).getSelectedItem();
-				if (projectIdIn != null) {
-					id = idproj.get(projectIdIn);
-					label.setText("ID = " + id);
-					ItemListener[] listeners = datasets.getItemListeners();
-					datasets.removeItemListener(listeners[0]);
-					datasets.removeAllItems();
-					for (Long datasetId : idmap.get(id)) {
-						datasets.addItem(dataname.get(datasetId));
-					}
-					datasets.addItemListener(listeners[0]);
-					datasets.setSelectedIndex(0);
+				int projectIdIn = ((JComboBox<?>) source).getSelectedIndex();
+				ProjectWrapper project = idproj.get(projectIdIn);			
+				id = project.getId();
+				label.setText("ID = " + id);
+				ItemListener[] listeners = datasets.getItemListeners();
+				datasets.removeItemListener(listeners[0]);
+				datasets.removeAllItems();
+				for (DatasetWrapper dataset : project.getDatasets()) {
+					datasets.addItem(dataset.getName());
 				}
+				datasets.addItemListener(listeners[0]);
+				datasets.setSelectedIndex(0);
 			}
 		}
 		return id;
@@ -461,7 +445,6 @@ public class BatchWindow extends JFrame {
 				} catch (ExecutionException | ServiceException | AccessException exception) {
 					IJ.log(exception.getMessage());
 				}
-				userIds = new HashMap<>();
 				ItemListener[] listeners = userList.getItemListeners();
 				userList.removeItemListener(listeners[0]);
 				userList.removeAllItems();
@@ -481,13 +464,7 @@ public class BatchWindow extends JFrame {
 		public void itemStateChanged(ItemEvent e) {
 			if (e.getStateChange() == ItemEvent.SELECTED) {
 				String username = (String) userList.getSelectedItem();
-				List maps = userProjectsAndDatasets(username, userIds);
-				idmap = (Map<Long, ArrayList<Long>>) maps.get(0);
-				projname = (Map<Long, String>) maps.get(1);
-				idproj = hashToMap(projname, idproj);
-				dataname = (Map<Long, String>) maps.get(2);
-				idata = hashToMap(dataname, idata);
-				projectIds = idproj.keySet();
+				userProjectsAndDatasets(username, userIds);
 				ItemListener[] listeners1 = projectListIn.getItemListeners();
 				projectListIn.removeItemListener(listeners1[0]);
 				ItemListener[] listeners2 = projectListOutNew.getItemListeners();
@@ -497,10 +474,10 @@ public class BatchWindow extends JFrame {
 				projectListIn.removeAllItems();
 				projectListOutNew.removeAllItems();
 				projectListOutExist.removeAllItems();
-				for (String project_id : projectIds) {
-					projectListIn.addItem(project_id);
-					projectListOutNew.addItem(project_id);
-					projectListOutExist.addItem(project_id);
+				for (ProjectWrapper project : idproj) {
+					projectListIn.addItem(project.getName());
+					projectListOutNew.addItem(project.getName());
+					projectListOutExist.addItem(project.getName());
 				}
 				projectListIn.addItemListener(listeners1[0]);
 				projectListIn.setSelectedIndex(0);
@@ -531,8 +508,10 @@ public class BatchWindow extends JFrame {
 
 	class ComboOutNewListener implements ActionListener {
 		public void actionPerformed(ActionEvent e) {
-			String projectIdOut = (String) projectListOutNew.getSelectedItem();
-			labelNewprojectname.setText("ID = " + idproj.get(projectIdOut));
+			int index = projectListOutNew.getSelectedIndex();
+			ProjectWrapper project = idproj.get(index);
+			projectIdOut = project.getId();
+			labelNewprojectname.setText("ID = " + projectIdOut);
 		}
 
 	}
@@ -583,22 +562,21 @@ public class BatchWindow extends JFrame {
 		public void actionPerformed(ActionEvent e) {
 
 			// initiation of success variables
-			Boolean inputdata = null;
-			Boolean macrodata = null;
-			Boolean omerorecord = null;
-			Boolean localrecord = null;
-			Boolean recordtype = null;
-			Boolean sens = null;
+			boolean inputdata;
+			boolean macrodata;
+			boolean omerorecord;
+			boolean localrecord;
+			boolean recordtype;
+			boolean sens;
+			int index;
 
 			// input data
 			if (omero.isSelected()) {
-				String inputDatasetId = (String) datasetListIn.getSelectedItem();
-				if (inputDatasetId == null) {
-					errorWindow("Input: \nNo dataset selected");
-				} else {
-					data.setInputDatasetId(idata.get(inputDatasetId));
-					inputdata = true;
-				}
+				index =  datasetListIn.getSelectedIndex();
+				DatasetWrapper dataset = idata.get(index);
+				Long inputDatasetId = dataset.getId();
+				data.setInputDatasetId(inputDatasetId);
+				inputdata = true;
 			} else { // local.isSelected()
 				if (inputfolder.getText().equals("")) {
 					errorWindow("Input: \nNo directory selected");
@@ -634,8 +612,9 @@ public class BatchWindow extends JFrame {
 			// record type
 			if (checkinline.isSelected()) { // inline record
 				if (exist.isSelected()) { // existing dataset
-					outputDatasetId = idata
-							.get(datasetListOutExist.getSelectedItem());
+					index = datasetListOutExist.getSelectedIndex();
+					DatasetWrapper dataset = idata.get(index);
+					outputDatasetId =  dataset.getId();
 					if (outputDatasetId == null) {
 						errorWindow("Output: \nNo dataset selected");
 						omerorecord = false;
@@ -643,8 +622,9 @@ public class BatchWindow extends JFrame {
 						omerorecord = true;
 					}
 				} else { // new dataset
-					projectIdOut = idproj
-							.get(projectListOutNew.getSelectedItem());
+					index = projectListOutNew.getSelectedIndex();
+					ProjectWrapper project = idproj.get(index);
+					projectIdOut = project.getId();
 					datasetNameOut = newdataset.getText();
 					if (projectIdOut == null || datasetNameOut.equals("")) {
 						errorWindow("Output: \nNo project selected or name written");
@@ -675,9 +655,8 @@ public class BatchWindow extends JFrame {
 			if (!checkinline.isSelected() && !checkoutline
 					.isSelected()) { // omerorecord == null && localrecord = null
 				errorWindow("Output: \nYou have to choose the localisation to save the results");
-			} else if ((omerorecord || omerorecord == null) &&
-					   (localrecord || localrecord ==
-									   null)) { // true means selected and ok, null means not selected, false means selected but pb
+			} else if ((omerorecord) &&
+					   (localrecord)) { // true means selected and ok, null means not selected, false means selected but pb
 				recordtype = true;
 			}
 
