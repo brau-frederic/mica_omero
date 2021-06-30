@@ -43,7 +43,6 @@ public class ProgressDialog extends JFrame implements ProcessingProgress {
 		cp2.add(panel1);
 		cp2.add(panel2);
 		cp2.add(panel3);
-		this.setVisible(true);
 	}
 
 

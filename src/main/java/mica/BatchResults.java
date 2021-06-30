@@ -1,15 +1,15 @@
 package mica;
 
+import fr.igred.omero.roi.ROIWrapper;
+
 import java.util.Collection;
 import java.util.List;
-
-import omero.gateway.model.ROIData;
 
 public class BatchResults {
 
 private List<String> pathsImages;
 private List<String> pathsAttach;
-private List<Collection<ROIData>> mROIS;
+private List<Collection<ROIWrapper>> mROIS;
 private List<Long> imageIds;
 private boolean imaRes;
 
@@ -25,7 +25,7 @@ public void setPathAttach(List<String> pathsAttach ) {
     this.pathsAttach = pathsAttach;
 }
 
-public void setmROIS(List<Collection<ROIData>> mROIS ) {
+public void setmROIS(List<Collection<ROIWrapper>> mROIS ) {
     this.mROIS = mROIS;
 }
 
@@ -45,7 +45,7 @@ public List<String> getPathAttach() {
     return pathsAttach;
 }
 
-public List<Collection<ROIData>> getmROIS() {
+public List<Collection<ROIWrapper>> getmROIS() {
     return mROIS;
 }
 
