@@ -117,7 +117,7 @@ public class BatchRunner extends Thread {
 				directoryOut = directoryOutf.toString();
 			}
 
-			if (outputOnOMERO) {
+			if (inputOnOMERO) {
 				setProgress("Images recovery from Omero...");
 				DatasetWrapper dataset = client.getDataset(inputDatasetId);
 				List<ImageWrapper> images = dataset.getImages(client);
@@ -177,7 +177,7 @@ public class BatchRunner extends Thread {
 			}
 			setDone();
 		} catch (Exception e3) {
-			if (e3.getMessage().equals("Macro cancelled")) {
+			if (e3.getMessage() != null && e3.getMessage().equals("Macro cancelled")) {
 				setDone();
 				setState("Macro cancelled");
 				IJ.run("Close");
@@ -338,13 +338,11 @@ public class BatchRunner extends Thread {
 			imageIds.add(id);
 			long gid = client.getCurrentGroupId();
 			client.switchGroup(gid);
-			client.getImage(id).toImagePlus(client);
-			ImagePlus imp = IJ.getImage();
+			ImagePlus imp = client.getImage(id).toImagePlus(client);
 			long idocal = imp.getID();
 			// Define paths
 			String title = imp.getTitle();
-			if ((title
-					.matches("(.*)qptiff(.*)")))
+			if ((title.matches("(.*)qptiff(.*)")))
 				title = title.replace(".qptiff", "_");
 			else title = FilenameUtils.removeExtension(title);
 			String res =
@@ -353,6 +351,7 @@ public class BatchRunner extends Thread {
 					dir + File.separator + "Res_" +
 					title + /* extensionChosen + */ "_" + todayDate() +
 					".xls";
+			imp.show();
 			// Analyse the images.
 			IJ.runMacroFile(macroChosen, appel);
 			appel = "1";

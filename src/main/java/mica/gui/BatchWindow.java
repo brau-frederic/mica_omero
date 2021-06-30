@@ -583,8 +583,7 @@ public class BatchWindow extends JFrame {
 				if (macrof.exists() && !macrof.isDirectory()) {
 					macrodata = true;
 				} else {
-					errorWindow("Macro: \nThe file " + macroChosen +
-								" doesn't exist");
+					errorWindow("Macro: \nThe file " + macroChosen + " doesn't exist");
 				}
 			}
 
@@ -634,11 +633,9 @@ public class BatchWindow extends JFrame {
 				}
 			}
 
-			if (!checkinline.isSelected() && !checkoutline
-					.isSelected()) { // omerorecord == null && localrecord = null
+			if (!checkinline.isSelected() && !checkoutline.isSelected()) { // omerorecord == null && localrecord = null
 				errorWindow("Output: \nYou have to choose the localisation to save the results");
-			} else if ((omerorecord) &&
-					   (localrecord)) { // true means selected and ok, null means not selected, false means selected but pb
+			} else if ((omerorecord) || (localrecord)) { // true means selected and ok, null means not selected, false means selected but pb
 				recordtype = true;
 			}
 
@@ -667,6 +664,7 @@ public class BatchWindow extends JFrame {
 					runner.setSaveResults(checkresfileRes.isSelected());
 					runner.setSaveROIs(checkresfileRoi.isSelected());
 					if (checkinline.isSelected()) {
+						runner.setOutputOnOMERO(true);
 						runner.setOutputDatasetId(outputDatasetId);
 						runner.setProjectIdOut(projectIdOut);
 						if (diff.isSelected()) {
@@ -677,6 +675,7 @@ public class BatchWindow extends JFrame {
 						}
 					}
 					if (checkoutline.isSelected()) {
+						runner.setOutputOnLocal(true);
 						runner.setDirectoryIn(directoryIn);
 						runner.setDirectoryOut(directoryOut);
 					}

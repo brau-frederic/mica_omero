@@ -14,18 +14,14 @@ public class BatchOMERO implements PlugIn {
     @Override
     public void run(String s) {
 		Client client = new Client();
-        try {
-            // Ask for parameters:
-            ConnectDialog connectDialog = new ConnectDialog(client);
-            if(connectDialog.wasCancelled()) return;
+		// Ask for parameters:
+		ConnectDialog connectDialog = new ConnectDialog(client);
+		if(connectDialog.wasCancelled()) return;
 
-			ProgressDialog progress = new ProgressDialog();
-			BatchRunner runner = new BatchRunner(client, progress);
+		ProgressDialog progress = new ProgressDialog();
+		BatchRunner runner = new BatchRunner(client, progress);
 
-            new BatchWindow(runner);
-        } finally {
-            client.disconnect();
-        }
+		new BatchWindow(runner);
     }
 
 }
