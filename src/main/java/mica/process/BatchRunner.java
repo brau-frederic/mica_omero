@@ -338,10 +338,19 @@ public class BatchRunner extends Thread {
 			setState("image " + (index + 1) + "/" + images.size());
 			long id = image.getId();
 			imageIds.add(id);
-			long gid = client.getCurrentGroupId();
-			client.switchGroup(gid);
-			ImagePlus imp = client.getImage(id).toImagePlus(client);
+			ImagePlus imp = image.toImagePlus(client);
 			long idocal = imp.getID();
+
+			// Load ROIs
+			RoiManager rm = RoiManager.getInstance2();
+			rm.reset(); // Reset ROI manager to clear previous ROIs
+			List<Roi> ijRois = new ArrayList<>();
+			if(loadROIs) ijRois = ROIWrapper.toImageJ(image.getROIs(client));
+			for(Roi ijRoi : ijRois) {
+				ijRoi.setImage(imp);
+				rm.addRoi(ijRoi);
+			}
+
 			// Define paths
 			String title = imp.getTitle();
 			if ((title.matches("(.*)qptiff(.*)")))
@@ -354,13 +363,14 @@ public class BatchRunner extends Thread {
 					title + /* extensionChosen + */ "_" + todayDate() +
 					".xls";
 			imp.show();
+
 			// Analyse the images.
 			IJ.runMacroFile(macroChosen, appel);
 			appel = "1";
+
 			// Save and Close the various components
 			if (savRois) {
 				// save of ROIs
-				RoiManager rm = RoiManager.getInstance2();
 				if (outputOnLocal) {  //  local save
 					rm.runCommand("Deselect"); // deselect ROIs to save them all
 					rm.runCommand("Save", dir + File.separator + title + "_" +
