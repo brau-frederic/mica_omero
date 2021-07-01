@@ -8,6 +8,7 @@ import fr.igred.omero.meta.GroupWrapper;
 import fr.igred.omero.repository.DatasetWrapper;
 import fr.igred.omero.repository.ProjectWrapper;
 import ij.IJ;
+import mica.process.BatchListener;
 import mica.process.BatchRunner;
 
 import javax.swing.*;
@@ -22,10 +23,11 @@ import java.util.stream.Collectors;
 
 import static javax.swing.JOptionPane.showMessageDialog;
 
-public class BatchWindow extends JFrame {
+public class BatchWindow extends JFrame implements BatchListener {
 	private final JComboBox<String> groupList = new JComboBox<>();
 	private final JComboBox<String> userList = new JComboBox<>();
 	private final JLabel labelGroupName = new JLabel();
+	private final JButton start = new JButton("Start");
 
 	// choices of input images
 	private final JPanel panelInput = new JPanel();
@@ -99,6 +101,7 @@ public class BatchWindow extends JFrame {
 		super("Choice of input files and output location");
 		this.runner = runner;
 		this.client = runner.getClient();
+		this.runner.addListener(this);
 
 		this.addWindowListener(new WindowAdapter() {
 			@Override
@@ -112,6 +115,7 @@ public class BatchWindow extends JFrame {
 		final String datasetName = "Dataset Name: ";
 		this.setSize(600, 700);
 		this.setLocationRelativeTo(null);
+
 		try {
 			exp = client.getUser(client.getUser().getUserName());
 		} catch (ExecutionException | ServiceException | AccessException e) {
@@ -279,7 +283,6 @@ public class BatchWindow extends JFrame {
 
 		// validation button
 		JPanel panelBtn = new JPanel();
-		JButton start = new JButton("Start");
 		panelBtn.add(start);
 		start.addActionListener(e -> start());
 		cp.add(panelBtn);
@@ -476,6 +479,12 @@ public class BatchWindow extends JFrame {
 	}
 
 
+	@Override
+	public void onThreadFinished() {
+		start.setEnabled(true);
+	}
+
+
 	class ComboOutNewListener implements ItemListener {
 		public void itemStateChanged(ItemEvent e) {
 			if (e.getStateChange() == ItemEvent.SELECTED) {
@@ -508,11 +517,6 @@ public class BatchWindow extends JFrame {
 					panelOutput.remove(output3a1);
 					panelOutput.remove(output3a2);
 				}
-				if (checkoutline.isSelected()) {
-					panelOutput.add(output3b);
-				} else {
-					panelOutput.remove(output3b);
-				}
 			} else {
 				panelOutput.remove(output1);
 				panelOutput.remove(output3a1);
@@ -520,11 +524,11 @@ public class BatchWindow extends JFrame {
 				panelOutput.remove(output3a1);
 				panelOutput.remove(output3a2);
 				panelOutput.remove(output3b);
-				if (checkoutline.isSelected()) {
-					panelOutput.add(output3b);
-				} else {
-					panelOutput.remove(output3b);
-				}
+			}
+			if (checkoutline.isSelected()) {
+				panelOutput.add(output3b);
+			} else {
+				panelOutput.remove(output3b);
 			}
 			BatchWindow.this.setVisible(true);
 		}
@@ -533,6 +537,7 @@ public class BatchWindow extends JFrame {
 
 
 	public void start() {
+		start.setEnabled(false);
 
 		// initiation of success variables
 		boolean inputdata = false;
@@ -672,11 +677,14 @@ public class BatchWindow extends JFrame {
 				}
 
 				runner.setMacro(macroChosen);
+
 				runner.start();
 			} catch (Exception e2) {
 				errorWindow(e2.getMessage());
 			}
 		}
 	}
+
+
 
 }
