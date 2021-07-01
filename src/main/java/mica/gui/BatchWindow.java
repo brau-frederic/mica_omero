@@ -285,7 +285,7 @@ public class BatchWindow extends JFrame {
 		cp.add(panelBtn);
 
 		long groupId = client.getCurrentGroupId();
-		int index = 0;
+		int index;
 		for(index=0; index<groups.size(); index++) {
 			if(groups.get(index).getId() == groupId) break;
 		}
