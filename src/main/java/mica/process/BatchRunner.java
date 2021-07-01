@@ -20,6 +20,7 @@ import mica.gui.ProgressDialog;
 import org.apache.commons.io.FilenameUtils;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.SimpleDateFormat;
@@ -173,7 +174,9 @@ public class BatchRunner extends Thread {
 
 			if (outputOnLocal) {
 				setProgress("Temporary directory deletion...");
-				deleteTemp(directoryOut);
+				if(!deleteTemp(directoryOut)) {
+					IJ.log("Temp directory may not be deleted.");
+				}
 			}
 			setDone();
 		} catch (Exception e3) {
@@ -212,9 +215,8 @@ public class BatchRunner extends Thread {
 	}
 
 
-	// for(ROIWrapper roi : image.getROIs(client)) client.delete(roi);
 	public void deleteROIs(List<ImageWrapper> images) {
-		setProgress("ROIs deletion from Omero");
+		setProgress("ROIs deletion from OMERO");
 		for (ImageWrapper image : images) {
 			try {
 				List<ROIWrapper> rois = image.getROIs(client);
@@ -379,19 +381,15 @@ public class BatchRunner extends Thread {
 					if (saveImage) { // image results expected
 						if (results) {
 							saveAndCloseWithRes(res, attach);
-							mROIS.add(getRoisFromIJ(id, imp, property));
 						} else {
 							saveAndCloseWithoutRes(res);
-							mROIS.add(getRoisFromIJ(id, imp, property));
 						}
 					} else {
 						if (results) {
 							saveResultsOnly(attach);
-							mROIS.add(getRoisFromIJ(id, imp, property));
-						} else {
-							mROIS.add(getRoisFromIJ(id, imp, property));
 						}
 					}
+					mROIS.add(getRoisFromIJ(id, imp, property));
 				}
 			} else {
 				if (saveImage) { // image results expected
@@ -505,19 +503,15 @@ public class BatchRunner extends Thread {
 					if (saveImage) {  // image results expected
 						if (results) {
 							saveAndCloseWithRes(res, attach);
-							mROIS.add(getRoisFromIJ(id, imp, property));
 						} else {
 							saveAndCloseWithoutRes(res);
-							mROIS.add(getRoisFromIJ(id, imp, property));
 						}
 					} else {
 						if (results) {
 							saveResultsOnly(attach);
-							mROIS.add(getRoisFromIJ(id, imp, property));
-						} else {
-							mROIS.add(getRoisFromIJ(id, imp, property));
 						}
 					}
+					mROIS.add(getRoisFromIJ(id, imp, property));
 				}
 			} else {
 				if (saveImage) {  // image results expected
@@ -601,14 +595,22 @@ public class BatchRunner extends Thread {
 	}
 
 
-	public void deleteTemp(String tmpDir) {
+	public boolean deleteTemp(String tmpDir) {
 		//""" Delete the local copy of temporary files and directory """
+		boolean deleted = true;
 		File dir = new File(tmpDir);
 		File[] entries = dir.listFiles();
-		for (File entry : entries) {
-			entry.delete();
+		if(entries != null) {
+			try {
+				for (File entry : entries) {
+					deleted &= Files.deleteIfExists(entry.toPath());
+				}
+				deleted &= Files.deleteIfExists(dir.toPath());
+			} catch (IOException e) {
+				IJ.error("Could not delete files: " + e.getMessage());
+			}
 		}
-		dir.delete();
+		return deleted;
 	}
 
 
