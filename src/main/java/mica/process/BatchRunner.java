@@ -63,7 +63,7 @@ public class BatchRunner extends Thread {
 		super();
 		this.client = client;
 		this.progress = new ProgressLog(Logger.getLogger(getClass().getName()));
-		this.bResults = null;
+		this.bResults = new BatchResults();
 	}
 
 
@@ -71,7 +71,7 @@ public class BatchRunner extends Thread {
 		super();
 		this.client = client;
 		this.progress = progress;
-		this.bResults = null;
+		this.bResults = new BatchResults();
 	}
 
 
@@ -112,6 +112,9 @@ public class BatchRunner extends Thread {
 		List<Long> imaIds;
 		List<Long> imagesIds;
 		boolean imaRes;
+
+		System.out.print(outputOnLocal);
+		System.out.print(outputOnOMERO);
 
 		try {
 			if (!inputOnOMERO) {
@@ -394,21 +397,10 @@ public class BatchRunner extends Thread {
 					}
 				}
 				if (outputOnOMERO) { // save on Omero
-					if (saveImage) { // image results expected
-						if (results) {
-							saveAndCloseWithRes(res, attach);
-						} else {
-							saveAndCloseWithoutRes(res);
-						}
-					} else {
-						if (results) {
-							saveResultsOnly(attach);
-						}
-					}
 					mROIS.add(getRoisFromIJ(id, imp, property));
 				}
 			} else {
-				if (saveImage) { // image results expected
+				if (saveImage && outputOnLocal) { // image results expected
 					if (results) {
 						saveAndCloseWithRes(res, attach);
 					} else {
@@ -516,21 +508,10 @@ public class BatchRunner extends Thread {
 					}
 				}
 				if (outputOnOMERO) {  // save on Omero
-					if (saveImage) {  // image results expected
-						if (results) {
-							saveAndCloseWithRes(res, attach);
-						} else {
-							saveAndCloseWithoutRes(res);
-						}
-					} else {
-						if (results) {
-							saveResultsOnly(attach);
-						}
-					}
 					mROIS.add(getRoisFromIJ(id, imp, property));
 				}
 			} else {
-				if (saveImage) {  // image results expected
+				if (saveImage && outputOnLocal) {  // image results expected
 					if (results) {
 						saveAndCloseWithRes(res, attach);
 					} else {

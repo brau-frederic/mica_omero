@@ -539,7 +539,6 @@ public class BatchWindow extends JFrame implements BatchListener {
 
 
 	public void start() {
-		start.setEnabled(false);
 
 		// initiation of success variables
 		boolean inputdata = false;
@@ -679,7 +678,7 @@ public class BatchWindow extends JFrame implements BatchListener {
 				}
 
 				runner.setMacro(macroChosen);
-
+				start.setEnabled(false);
 				runner.start();
 			} catch (Exception e2) {
 				errorWindow(e2.getMessage());
