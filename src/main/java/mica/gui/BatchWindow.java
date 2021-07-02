@@ -137,6 +137,7 @@ public class BatchWindow extends JFrame implements BatchListener {
 		group.add(labelGroup);
 		group.add(groupList);
 		groupList.addItemListener(this::updateGroup);
+
 		group.add(labelGroupName);
 		labelGroupName.setFont(nameFont);
 		JPanel groupUsers = new JPanel();
@@ -292,6 +293,7 @@ public class BatchWindow extends JFrame implements BatchListener {
 		for(index=0; index<groups.size(); index++) {
 			if(groups.get(index).getId() == groupId) break;
 		}
+		groupList.setSelectedIndex(-1);
 		groupList.setSelectedIndex(index);
 
 		this.setVisible(true);
