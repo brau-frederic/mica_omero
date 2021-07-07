@@ -7,7 +7,6 @@ import fr.igred.omero.exception.OMEROServerError;
 import fr.igred.omero.exception.ServiceException;
 import fr.igred.omero.repository.DatasetWrapper;
 import fr.igred.omero.repository.ImageWrapper;
-import fr.igred.omero.repository.ProjectWrapper;
 import fr.igred.omero.roi.ROIWrapper;
 import ij.IJ;
 import ij.ImagePlus;
@@ -37,7 +36,6 @@ public class BatchRunner extends Thread {
 	private final BatchResults bResults;
 
 	private boolean inputOnOMERO;
-	private boolean newDataSet;
 	private boolean saveImage;
 	private boolean saveROIs;
 	private boolean saveResults;
@@ -48,13 +46,10 @@ public class BatchRunner extends Thread {
 	private long inputDatasetId;
 	private long outputDatasetId;
 	private long inputProjectId;
-	private long outputProjectId;
-	private long projectIdOut;
 	private String directoryIn;
 	private String directoryOut;
 	private String macro;
 	private String extension;
-	private String nameNewDataSet;
 
 	private BatchListener listener;
 
@@ -142,13 +137,6 @@ public class BatchRunner extends Thread {
 			roisL = bResults.getmROIS();
 			imaIds = bResults.getImageIds();
 			imaRes = bResults.getImaRes();
-
-			if (newDataSet && !imaRes) {
-				setProgress("New dataset creation...");
-				ProjectWrapper project = client.getProject(projectIdOut);
-				DatasetWrapper dataset = project.addDataset(client, nameNewDataSet, "");
-				outputDatasetId = dataset.getId();
-			}
 
 			if (outputOnOMERO) {
 				setProgress("import on omero...");
@@ -620,16 +608,6 @@ public class BatchRunner extends Thread {
 	}
 
 
-	public long getOutputProjectId() {
-		return outputProjectId;
-	}
-
-
-	public void setOutputProjectId(Long outputProjectId) {
-		if (outputProjectId != null) this.outputProjectId = outputProjectId;
-	}
-
-
 	public long getOutputDatasetId() {
 		return outputDatasetId;
 	}
@@ -757,36 +735,6 @@ public class BatchRunner extends Thread {
 
 	public void setExtension(String extensionChosen) {
 		this.extension = extensionChosen;
-	}
-
-
-	public boolean shouldnewDataSet() {
-		return newDataSet;
-	}
-
-
-	public void setnewDataSet(boolean newDataSet) {
-		this.newDataSet = newDataSet;
-	}
-
-
-	public String getNameNewDataSet() {
-		return nameNewDataSet;
-	}
-
-
-	public void setNameNewDataSet(String nameNewDataSet) {
-		this.nameNewDataSet = nameNewDataSet;
-	}
-
-
-	public long getProjectIdOut() {
-		return projectIdOut;
-	}
-
-
-	public void setProjectIdOut(long projectIdOut) {
-		this.projectIdOut = projectIdOut;
 	}
 
 
