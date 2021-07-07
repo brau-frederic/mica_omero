@@ -41,21 +41,21 @@ public class BatchWindow extends JFrame implements BatchListener {
 
 	private final JRadioButton omero = new JRadioButton("OMERO");
 	private final JRadioButton local = new JRadioButton("Local");
-	private final JCheckBox checkresfileDelRoi = new JCheckBox(" Clear ROIs each time ");
-	private final JCheckBox checkresfileLoadRoi = new JCheckBox(" Load ROIs ");
+	private final JCheckBox checkDelROIs = new JCheckBox(" Clear ROIs each time ");
+	private final JCheckBox checkLoadROIs = new JCheckBox(" Load ROIs ");
 
 	// choice of the dataSet
 	private final JComboBox<String> projectListIn = new JComboBox<>();
 	private final JComboBox<String> datasetListIn = new JComboBox<>();
-	private final JLabel labelProjectInName = new JLabel();
+	private final JLabel labelInputProject = new JLabel();
 	private final JLabel labelInputDataset = new JLabel();
 
 	// choice of the record
-	private final JTextField inputfolder = new JTextField(20);
+	private final JTextField inputFolder = new JTextField(20);
 	private final JTextField macro = new JTextField(20);
-	private final JCheckBox checkresfileIma = new JCheckBox(" The macro returns an image ");
-	private final JCheckBox checkresfileRes = new JCheckBox(" The macro returns a results file (other than images)");
-	private final JCheckBox checkresfileRoi = new JCheckBox(" The macro returns ROIs ");
+	private final JCheckBox checkImage = new JCheckBox(" The macro returns an image ");
+	private final JCheckBox checkResults = new JCheckBox(" The macro returns a results file (other than images)");
+	private final JCheckBox checkROIs = new JCheckBox(" The macro returns ROIs ");
 
 	// choice of output
 	private final JPanel panelOutput = new JPanel();
@@ -63,15 +63,15 @@ public class BatchWindow extends JFrame implements BatchListener {
 	private final JTextField extension = new JTextField(10);
 
 	// Omero or local => checkbox
-	private final JCheckBox checkinline = new JCheckBox("Omero");
-	private final JCheckBox checkoutline = new JCheckBox("Local");
+	private final JCheckBox onlineOutput = new JCheckBox("OMERO");
+	private final JCheckBox localOutput = new JCheckBox("Local");
 
 	// existing dataset
 	private final JPanel output3a = new JPanel();
 	private final JComboBox<String> projectListOut = new JComboBox<>();
 	private final JComboBox<String> datasetListOut = new JComboBox<>();
-	private final JLabel labelExistproject = new JLabel();
-	private final JLabel labelExistdataset = new JLabel();
+	private final JLabel labelOutputProject = new JLabel();
+	private final JLabel labelOutputDataset = new JLabel();
 
 	// local
 	private final JPanel output3b = new JPanel();
@@ -79,7 +79,6 @@ public class BatchWindow extends JFrame implements BatchListener {
 
 	//variables to keep
 	private final transient Client client;
-	private final transient BatchRunner runner;
 	private final transient List<GroupWrapper> groups;
 	private String macroChosen;
 	private String directoryOut;
@@ -94,11 +93,9 @@ public class BatchWindow extends JFrame implements BatchListener {
 	private transient ExperimenterWrapper exp;
 
 
-	public BatchWindow(BatchRunner runner) {
+	public BatchWindow(Client client) {
 		super("Choice of input files and output location");
-		this.runner = runner;
-		this.client = runner.getClient();
-		this.runner.addListener(this);
+		this.client = client;
 
 		this.addWindowListener(new WindowAdapter() {
 			@Override
@@ -164,22 +161,22 @@ public class BatchWindow extends JFrame implements BatchListener {
 		input2a.add(labelProjectIn);
 		input2a.add(projectListIn);
 		projectListIn.addItemListener(this::updateInputProject);
-		input2a.add(labelProjectInName);
-		labelProjectInName.setFont(nameFont);
+		input2a.add(labelInputProject);
+		labelInputProject.setFont(nameFont);
 		JLabel labelDatasetIn = new JLabel(datasetName);
 		input2a.add(labelDatasetIn);
 		input2a.add(datasetListIn);
 		datasetListIn.addItemListener(this::updateInputDataset);
 		input2a.add(labelInputDataset);
 		labelInputDataset.setFont(nameFont);
-		input2a.add(checkresfileLoadRoi);
-		input2a.add(checkresfileDelRoi);
+		input2a.add(checkLoadROIs);
+		input2a.add(checkDelROIs);
 
-		input2b.add(inputfolder);
-		inputfolder.setMaximumSize(new Dimension(300, 30));
+		input2b.add(inputFolder);
+		inputFolder.setMaximumSize(new Dimension(300, 30));
 		JButton inputfolderBtn = new JButton("Images directory");
 		input2b.add(inputfolderBtn);
-		inputfolderBtn.addActionListener(e -> chooseDirectory(inputfolder));
+		inputfolderBtn.addActionListener(e -> chooseDirectory(inputFolder));
 		panelInput.add(input1);
 		omero.setSelected(true);
 		panelInput.setLayout(new BoxLayout(panelInput, BoxLayout.PAGE_AXIS));
@@ -194,13 +191,13 @@ public class BatchWindow extends JFrame implements BatchListener {
 		macroBtn.addActionListener(e -> chooseMacro());
 		JPanel macro2 = new JPanel();
 		macro2.setLayout(new BoxLayout(macro2, BoxLayout.LINE_AXIS));
-		macro2.add(checkresfileIma);
+		macro2.add(checkImage);
 		JPanel macro3 = new JPanel();
 		macro3.setLayout(new BoxLayout(macro3, BoxLayout.LINE_AXIS));
-		macro3.add(checkresfileRes);
+		macro3.add(checkResults);
 		JPanel macro4 = new JPanel();
 		macro4.setLayout(new BoxLayout(macro4, BoxLayout.LINE_AXIS));
-		macro4.add(checkresfileRoi);
+		macro4.add(checkROIs);
 		//choice of the macro
 		JPanel panelMacro = new JPanel();
 		panelMacro.add(macro1);
@@ -219,18 +216,18 @@ public class BatchWindow extends JFrame implements BatchListener {
 		JPanel output2 = new JPanel();
 		JLabel labelRecordoption = new JLabel("Where to save results :");
 		output2.add(labelRecordoption);
-		output2.add(checkinline);
-		checkinline.addItemListener(new CheckInOutListener());
-		output2.add(checkoutline);
-		checkoutline.addItemListener(new CheckInOutListener());
+		output2.add(onlineOutput);
+		onlineOutput.addItemListener(new CheckInOutListener());
+		output2.add(localOutput);
+		localOutput.addItemListener(new CheckInOutListener());
 
-		output3a.add(labelExistproject);
+		output3a.add(labelOutputProject);
 		output3a.add(projectListOut);
 		projectListOut.addItemListener(this::updateOutputProject);
 		JLabel labelExistProjectName = new JLabel();
 		output3a.add(labelExistProjectName);
 		labelExistProjectName.setFont(nameFont);
-		output3a.add(labelExistdataset);
+		output3a.add(labelOutputDataset);
 		output3a.add(datasetListOut);
 		datasetListOut.addItemListener(this::updateOutputDataset);
 		JLabel labelExistDatasetName = new JLabel();
@@ -309,10 +306,10 @@ public class BatchWindow extends JFrame implements BatchListener {
 		if (e.getStateChange() == ItemEvent.SELECTED) {
 			Object source = e.getSource();
 			if (source instanceof JComboBox<?>) {
-				int projectIdIn = ((JComboBox<?>) source).getSelectedIndex();
-				ProjectWrapper project = userProjects.get(projectIdIn);
+				int index = ((JComboBox<?>) source).getSelectedIndex();
+				ProjectWrapper project = userProjects.get(index);
 				this.datasets = project.getDatasets();
-				labelProjectInName.setText("ID = " + project.getId());
+				labelInputProject.setText("ID = " + project.getId());
 				datasetListIn.removeAllItems();
 				for (DatasetWrapper dataset : project.getDatasets()) {
 					datasetListIn.addItem(dataset.getName());
@@ -329,7 +326,7 @@ public class BatchWindow extends JFrame implements BatchListener {
 			if (source instanceof JComboBox<?>) {
 				int datasetId = ((JComboBox<?>) source).getSelectedIndex();
 				DatasetWrapper dataset = myDatasets.get(datasetId);
-				labelExistdataset.setText("ID = " + dataset.getId());
+				labelOutputDataset.setText("ID = " + dataset.getId());
 			}
 		}
 	}
@@ -339,10 +336,10 @@ public class BatchWindow extends JFrame implements BatchListener {
 		if (e.getStateChange() == ItemEvent.SELECTED) {
 			Object source = e.getSource();
 			if (source instanceof JComboBox<?>) {
-				int projectIdIn = ((JComboBox<?>) source).getSelectedIndex();
-				ProjectWrapper project = userProjects.get(projectIdIn);
+				int index = ((JComboBox<?>) source).getSelectedIndex();
+				ProjectWrapper project = myProjects.get(index);
 				this.myDatasets = project.getDatasets();
-				labelExistproject.setText("ID = " + project.getId());
+				labelOutputProject.setText("ID = " + project.getId());
 				datasetListOut.removeAllItems();
 				for (DatasetWrapper dataset : project.getDatasets()) {
 					datasetListOut.addItem(dataset.getName());
@@ -357,13 +354,13 @@ public class BatchWindow extends JFrame implements BatchListener {
 		int index = projectListOut.getSelectedIndex();
 		ProjectWrapper project = myProjects.get(index);
 		long id = -1;
-		String name = (String)JOptionPane.showInputDialog(this,
-														  "New dataset name:",
-														  "Create a new dataset",
-														  JOptionPane.QUESTION_MESSAGE,
-														  null,
-														  null,
-														  null);
+		String name = (String) JOptionPane.showInputDialog(this,
+														   "New dataset name:",
+														   "Create a new dataset",
+														   JOptionPane.QUESTION_MESSAGE,
+														   null,
+														   null,
+														   null);
 		try {
 			DatasetWrapper newDataset = project.addDataset(client, name, "");
 			id = newDataset.getId();
@@ -372,8 +369,8 @@ public class BatchWindow extends JFrame implements BatchListener {
 		}
 		projectListOut.setSelectedIndex(-1);
 		projectListOut.setSelectedIndex(index);
-		for(int i=0; i<myDatasets.size(); i++) {
-			if(myDatasets.get(i).getId() == id){
+		for (int i = 0; i < myDatasets.size(); i++) {
+			if (myDatasets.get(i).getId() == id) {
 				datasetListOut.setSelectedIndex(i);
 				break;
 			}
@@ -383,10 +380,10 @@ public class BatchWindow extends JFrame implements BatchListener {
 
 	private void updateUser(ItemEvent e) {
 		if (e.getStateChange() == ItemEvent.SELECTED) {
-			String username = (String) userList.getSelectedItem();
-			int index = userList.getSelectedIndex() - 1;
+			int index = userList.getSelectedIndex();
+			String username = userList.getItemAt(index);
 			long userId = -1;
-			if (index >= 0) userId = users.get(index).getId();
+			if (index >= 1) userId = users.get(index - 1).getId();
 			userProjectsAndDatasets(username, userId);
 			projectListIn.removeAllItems();
 			projectListOut.removeAllItems();
@@ -444,11 +441,9 @@ public class BatchWindow extends JFrame implements BatchListener {
 		if (omero.isSelected()) {
 			panelInput.add(input2a);
 			panelInput.remove(input2b);
-			runner.setInputOnOMERO(true);
 		} else { //local.isSelected()
 			panelInput.add(input2b);
 			panelInput.remove(input2a);
-			runner.setInputOnOMERO(false);
 		}
 		BatchWindow.this.setVisible(true);
 	}
@@ -507,6 +502,9 @@ public class BatchWindow extends JFrame implements BatchListener {
 
 
 	public void start() {
+		ProgressDialog progress = new ProgressDialog();
+		BatchRunner runner = new BatchRunner(client, progress);
+		runner.addListener(this);
 
 		// initiation of success variables
 		boolean inputdata = false;
@@ -519,16 +517,18 @@ public class BatchWindow extends JFrame implements BatchListener {
 
 		// input data
 		if (omero.isSelected()) {
+			runner.setInputOnOMERO(true);
 			index = datasetListIn.getSelectedIndex();
 			DatasetWrapper dataset = datasets.get(index);
-			Long inputDatasetId = dataset.getId();
+			long inputDatasetId = dataset.getId();
 			runner.setInputDatasetId(inputDatasetId);
 			inputdata = true;
 		} else { // local.isSelected()
-			if (inputfolder.getText().equals("")) {
+			runner.setInputOnOMERO(false);
+			if (inputFolder.getText().equals("")) {
 				errorWindow("Input: \nNo directory selected");
 			} else {
-				directoryIn = inputfolder.getText();
+				directoryIn = inputFolder.getText();
 				File directoryInf = new File(directoryIn);
 				if (directoryInf.exists() && directoryInf.isDirectory()) {
 					inputdata = true;
@@ -555,7 +555,7 @@ public class BatchWindow extends JFrame implements BatchListener {
 		runner.setExtension(extension.getText());
 
 		// record type
-		if (checkinline.isSelected()) { // inline record
+		if (onlineOutput.isSelected()) { // inline record
 			index = datasetListOut.getSelectedIndex();
 			if (index == -1 || index > datasets.size()) {
 				errorWindow("Output: \nNo dataset selected");
@@ -566,7 +566,7 @@ public class BatchWindow extends JFrame implements BatchListener {
 			DatasetWrapper dataset = datasets.get(index);
 			outputDatasetId = dataset.getId();
 		}
-		if (checkoutline.isSelected()) { // local record
+		if (localOutput.isSelected()) { // local record
 			if (directory.getText().equals("")) {
 				errorWindow("Output: \nNo directory selected");
 				localrecord = false;
@@ -584,23 +584,23 @@ public class BatchWindow extends JFrame implements BatchListener {
 			}
 		}
 
-		if (!checkinline.isSelected() && !checkoutline.isSelected()) { // omerorecord == null && localrecord = null
+		if (!onlineOutput.isSelected() && !localOutput.isSelected()) { // omerorecord == null && localrecord = null
 			errorWindow("Output: \nYou have to choose the localisation to save the results");
 		} else if ((omerorecord) ||
 				   (localrecord)) { // true means selected and ok, null means not selected, false means selected but pb
 			recordtype = true;
 		}
 
-		if (!checkresfileRes.isSelected() &&
-			!checkresfileRoi.isSelected() &&
-			!checkresfileIma.isSelected()) { // No query
+		if (!checkResults.isSelected() &&
+			!checkROIs.isSelected() &&
+			!checkImage.isSelected()) { // No query
 			errorWindow("Macro: \nYou have to choose almost one output");
 		} else {
 			sens = true;
 		}
 
-		if (local.isSelected() && checkinline.isSelected() &&
-			!checkresfileIma.isSelected()) { // Impossible to upload
+		if (local.isSelected() && onlineOutput.isSelected() &&
+			!checkImage.isSelected()) { // Impossible to upload
 			errorWindow("Output: \nYou can't upload results file or ROIs on OMERO if your image isn't in OMERO");
 			sens = false;
 		} else {
@@ -610,16 +610,16 @@ public class BatchWindow extends JFrame implements BatchListener {
 		//
 		if (inputdata && macrodata && recordtype && sens) {
 			try {
-				runner.setLoadROIS(checkresfileLoadRoi.isSelected());
-				runner.setClearROIS(checkresfileDelRoi.isSelected());
-				runner.setSaveImage(checkresfileIma.isSelected());
-				runner.setSaveResults(checkresfileRes.isSelected());
-				runner.setSaveROIs(checkresfileRoi.isSelected());
-				if (checkinline.isSelected()) {
+				runner.setLoadROIS(checkLoadROIs.isSelected());
+				runner.setClearROIS(checkDelROIs.isSelected());
+				runner.setSaveImage(checkImage.isSelected());
+				runner.setSaveResults(checkResults.isSelected());
+				runner.setSaveROIs(checkROIs.isSelected());
+				if (onlineOutput.isSelected()) {
 					runner.setOutputOnOMERO(true);
 					runner.setOutputDatasetId(outputDatasetId);
 				}
-				if (checkoutline.isSelected()) {
+				if (localOutput.isSelected()) {
 					runner.setOutputOnLocal(true);
 					runner.setDirectoryIn(directoryIn);
 					runner.setDirectoryOut(directoryOut);
@@ -637,10 +637,10 @@ public class BatchWindow extends JFrame implements BatchListener {
 
 	class CheckInOutListener implements ItemListener {
 		public void itemStateChanged(ItemEvent e) {
-			if (checkresfileIma.isSelected()) {
+			if (checkImage.isSelected()) {
 				panelOutput.remove(output3b);
 				panelOutput.add(output1);
-				if (checkinline.isSelected()) {
+				if (onlineOutput.isSelected()) {
 					panelOutput.add(output3a);
 				} else {
 					panelOutput.remove(output3a);
@@ -650,7 +650,7 @@ public class BatchWindow extends JFrame implements BatchListener {
 				panelOutput.remove(output3a);
 				panelOutput.remove(output3b);
 			}
-			if (checkoutline.isSelected()) {
+			if (localOutput.isSelected()) {
 				panelOutput.add(output3b);
 			} else {
 				panelOutput.remove(output3b);

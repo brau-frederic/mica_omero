@@ -126,9 +126,9 @@ public class BatchRunner extends Thread {
 			}
 			setDone();
 		} catch (Exception e3) {
+			setDone();
+			setState("Macro cancelled");
 			if (e3.getMessage() != null && e3.getMessage().equals("Macro cancelled")) {
-				setDone();
-				setState("Macro cancelled");
 				IJ.run("Close");
 			}
 			IJ.error(e3.getMessage());
