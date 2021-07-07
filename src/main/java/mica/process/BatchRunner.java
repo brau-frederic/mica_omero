@@ -222,12 +222,12 @@ public class BatchRunner extends Thread {
 
 			imp.changes = false; // Prevent "Save Changes?" dialog
 			imp = WindowManager.getCurrentImage();
-			if (saveImage && imp != null && imp.getID() != ijId) {
+			if (imp != null && imp.getID() != ijId) {
 				List<Long> ids = saveImage(res);
 				if (!ids.isEmpty()) {
 					outputImageId = ids.get(0);
 				}
-			} else {
+			} else if (saveImage) {
 				IJ.error("Impossible to save: output image must be different from input image.");
 			}
 
@@ -273,7 +273,7 @@ public class BatchRunner extends Thread {
 				if (!ids.isEmpty()) {
 					outputImageId = ids.get(0);
 				}
-			} else {
+			} else if (saveImage) {
 				IJ.error("Impossible to save: output image must be different from input image.");
 			}
 
@@ -360,10 +360,10 @@ public class BatchRunner extends Thread {
 					roi.setImage(image);
 					image.saveROI(client, roi);
 				}
+				loadROIs(image, imp); // reload ROIs
 			} catch (ServiceException | AccessException | ExecutionException e) {
 				IJ.error("Could not import ROIs to OMERO: " + e.getMessage());
 			}
-
 		}
 	}
 
