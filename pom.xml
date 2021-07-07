@@ -32,7 +32,7 @@
         </repository>
         <repository>
             <id>gred-releases</id>
-            <url>https://artifacts.igred.fr/snapshots</url>
+            <url>https://artifacts.igred.fr/releases</url>
         </repository>
     </repositories>
 
