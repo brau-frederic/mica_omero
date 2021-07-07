@@ -1,7 +1,6 @@
 package mica.process;
 
 import fr.igred.omero.Client;
-import fr.igred.omero.GenericObjectWrapper;
 import fr.igred.omero.exception.AccessException;
 import fr.igred.omero.exception.OMEROServerError;
 import fr.igred.omero.exception.ServiceException;
@@ -14,26 +13,26 @@ import ij.WindowManager;
 import ij.gui.Overlay;
 import ij.gui.Roi;
 import ij.plugin.frame.RoiManager;
-import mica.BatchResults;
 import mica.gui.ProgressDialog;
 import org.apache.commons.io.FilenameUtils;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
 
 public class BatchRunner extends Thread {
 
 	private final Client client;
 	private final ProcessingProgress progress;
-	private final BatchResults bResults;
 
 	private boolean inputOnOMERO;
 	private boolean saveImage;
@@ -45,7 +44,6 @@ public class BatchRunner extends Thread {
 	private boolean outputOnLocal;
 	private long inputDatasetId;
 	private long outputDatasetId;
-	private long inputProjectId;
 	private String directoryIn;
 	private String directoryOut;
 	private String macro;
@@ -58,7 +56,6 @@ public class BatchRunner extends Thread {
 		super();
 		this.client = client;
 		this.progress = new ProgressLog(Logger.getLogger(getClass().getName()));
-		this.bResults = new BatchResults();
 	}
 
 
@@ -66,7 +63,6 @@ public class BatchRunner extends Thread {
 		super();
 		this.client = client;
 		this.progress = progress;
-		this.bResults = new BatchResults();
 	}
 
 
@@ -101,68 +97,28 @@ public class BatchRunner extends Thread {
 		if (progress instanceof ProgressDialog) {
 			((ProgressDialog) progress).setVisible(true);
 		}
-		List<String> pathsImages;
-		List<String> pathsAttach;
-		List<Collection<ROIWrapper>> roisL;
-		List<Long> imaIds;
-		List<Long> imagesIds;
-		boolean imaRes;
 
 		try {
-			if (!inputOnOMERO) {
+			if (!outputOnLocal) {
 				setProgress("Temporary directory creation...");
-				Path directoryOutf = Files.createTempDirectory("Fiji_analyse");
-				directoryOut = directoryOutf.toString();
+				directoryOut = Files.createTempDirectory("Fiji_analysis").toString();
 			}
 
 			if (inputOnOMERO) {
-				setProgress("Images recovery from Omero...");
+				setProgress("Images recovery from OMERO...");
 				DatasetWrapper dataset = client.getDataset(inputDatasetId);
 				List<ImageWrapper> images = dataset.getImages(client);
 				setProgress("Macro running...");
-				runMacro(images, macro, extension, directoryOut, saveResults, saveROIs);
-				setState("");
-				if (clearROIs) {
-					deleteROIs(images);
-				}
+				runMacro(images);
 			} else {
 				setProgress("Images recovery from input folder...");
 				List<String> images = getImagesFromDirectory(getDirectoryIn());
 				setProgress("Macro running...");
-				runMacroOnLocalImages(images, macro, extension, directoryOut, saveResults, saveROIs);
-				setState("");
+				runMacroOnLocalImages(images);
 			}
-			pathsImages = bResults.getPathImages();
-			pathsAttach = bResults.getPathAttach();
-			roisL = bResults.getmROIS();
-			imaIds = bResults.getImageIds();
-			imaRes = bResults.getImaRes();
+			setState("");
 
-			if (outputOnOMERO) {
-				setProgress("import on omero...");
-				// Default imageIds = input images
-				DatasetWrapper dataset = client.getDataset(inputDatasetId);
-				List<ImageWrapper> images = dataset.getImages(client);
-				imagesIds = images.stream().map(GenericObjectWrapper::getId).collect(Collectors.toList());
-				if (imaRes && saveImage) {
-					imagesIds = importImagesInDataset(pathsImages, roisL, saveROIs);
-				}
-				if (saveImage && saveROIs) {
-					imagesIds = importRoisInImage(imaIds, roisL);
-				}
-				if (saveResults && !saveImage && !saveROIs) {
-					setProgress("Attachment of results files...");
-					uploadTagFiles(pathsAttach, imaIds);
-				} else if (saveResults && saveImage) {
-					setProgress("Attachment of results files...");
-					uploadTagFiles(pathsAttach, imagesIds);
-				}
-				if (!imaRes && saveImage) {
-					IJ.error("Impossible to save: \nOutput image must be different than input image");
-				}
-			}
-
-			if (outputOnLocal) {
+			if (!outputOnLocal) {
 				setProgress("Temporary directory deletion...");
 				if (!deleteTemp(directoryOut)) {
 					IJ.log("Temp directory may not be deleted.");
@@ -182,45 +138,18 @@ public class BatchRunner extends Thread {
 	}
 
 
-	public List<Long> importImagesInDataset(List<String> pathsImages,
-											List<Collection<ROIWrapper>> roisL,
-											boolean saveRois)
-	throws Exception {
-		//""" Import images in Omero server from pathsImages and return ids of these images in datasetId """
-		//pathsImages : String[]
-		List<Long> imageIds = new ArrayList<>();
-
-		Long datasetId = outputDatasetId;
-		DatasetWrapper dataset = client.getDataset(datasetId);
-		for (String path : pathsImages) {
-			List<Long> newIds = dataset.importImage(client, path);
-			imageIds.addAll(newIds);
-		}
-
-		int indice = 0;
-		for (Long id : imageIds) {
-			if (saveRois) {
-				indice = uploadROIS(roisL, id, indice);
-			}
-		}
-		return imageIds;
-	}
-
-
-	public void deleteROIs(List<ImageWrapper> images) {
+	public void deleteROIs(ImageWrapper image) {
 		setProgress("ROIs deletion from OMERO");
-		for (ImageWrapper image : images) {
-			try {
-				List<ROIWrapper> rois = image.getROIs(client);
-				for (ROIWrapper roi : rois) {
-					client.delete(roi);
-				}
-			} catch (ExecutionException | OMEROServerError | ServiceException | AccessException exception) {
-				IJ.log(exception.getMessage());
-			} catch (InterruptedException e) {
-				IJ.log(e.getMessage());
-				Thread.currentThread().interrupt();
+		try {
+			List<ROIWrapper> rois = image.getROIs(client);
+			for (ROIWrapper roi : rois) {
+				client.delete(roi);
 			}
+		} catch (ExecutionException | OMEROServerError | ServiceException | AccessException exception) {
+			IJ.log(exception.getMessage());
+		} catch (InterruptedException e) {
+			IJ.log(e.getMessage());
+			Thread.currentThread().interrupt();
 		}
 	}
 
@@ -238,48 +167,7 @@ public class BatchRunner extends Thread {
 	}
 
 
-	// Si on utilise une List<ImageWrapper>, on récupère les IDs directement.
-	public List<Long> getImageIds(Long datasetId) {
-		//""" List all image's ids contained in a Dataset """
-		List<Long> imageIds = new ArrayList<>();
-		try {
-			DatasetWrapper dataset = client.getDataset(datasetId);
-			List<ImageWrapper> images = dataset.getImages(client);
-			images.forEach(image -> imageIds.add(image.getId()));
-		} catch (ServiceException | AccessException exception) {
-			IJ.log(exception.getMessage());
-		}
-		return imageIds;
-	}
-
-
-	public void saveAndCloseWithRes(String image, String attach) {
-		//IJ.selectWindow("Result") //depends if images are renamed or not in the macro
-
-		IJ.saveAs("TIFF", image);
-		//IJ.run("Close")
-		IJ.selectWindow("Results");
-		IJ.saveAs("Results", attach);
-		//IJ.run("Close")
-	}
-
-
-	public void saveAndCloseWithoutRes(String image) {
-		//IJ.selectWindow("Result") //depends if images are renamed or not in the macro
-		IJ.saveAs("TIFF", image);
-		//	IJ.run("Close")
-	}
-
-
-	public void saveResultsOnly(String attach) {
-		IJ.selectWindow("Results");
-		IJ.saveAs("Results", attach);
-		//	IJ.run("Close")
-	}
-
-
-	List<ROIWrapper> getRoisFromIJ(Long id, ImagePlus imp, String property)
-	throws ServiceException, AccessException {
+	private List<ROIWrapper> getRoisFromIJ(ImagePlus imp, String property) {
 		List<ROIWrapper> rois = new ArrayList<>();
 		if (imp != null) {
 			List<Roi> ijRois = new ArrayList<>();
@@ -291,7 +179,6 @@ public class BatchRunner extends Thread {
 			ijRois.addAll(Arrays.asList(manager.getRoisAsArray()));
 			for (Roi roi : ijRois) roi.setImage(imp);
 			rois = ROIWrapper.fromImageJ(ijRois, property);
-			for (ROIWrapper roi : rois) roi.setImage(client.getImage(id));
 		}
 
 		return rois;
@@ -299,281 +186,197 @@ public class BatchRunner extends Thread {
 
 
 	String todayDate() {
-		SimpleDateFormat formatter = new SimpleDateFormat("HH-mm-ss-dd-MM-yyyy");
-		Date date = new Date();
-		String textDate = formatter.format(date);
-		String[] tabDate = textDate.split("-", 4);
-		return tabDate[3] + "_" + tabDate[0] + "h" + tabDate[1];
+		return new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(new Date());
 	}
 
 
-	void runMacro(List<ImageWrapper> images,
-				  String macroChosen,
-				  String extensionChosen,
-				  String dir,
-				  boolean results,
-				  boolean savRois)
-	throws ServiceException, AccessException, ExecutionException {
+	void runMacro(List<ImageWrapper> images) {
 		//""" Run a macro on images and save the result """
-		int size = images.size();
-		boolean imaRes = true;
 		String property = "ROI";
-		String[] pathsImages = new String[size];
-		String[] pathsAttach = new String[size];
-		IJ.run("Close All");
+		ij.WindowManager.closeAllWindows();
 		String appel = "0";
-		List<Collection<ROIWrapper>> mROIS = new ArrayList<>();
-		List<Long> imageIds = new ArrayList<>();
 		int index = 0;
 		for (ImageWrapper image : images) {
-			// Open the image
-			setState("image " + (index + 1) + "/" + images.size());
-			long id = image.getId();
-			imageIds.add(id);
-			ImagePlus imp = image.toImagePlus(client);
-			long idocal = imp.getID();
+			setState("Image " + (index + 1) + "/" + images.size());
+			long outputImageId = image.getId();
+
+			// Open image from OMERO
+			ImagePlus imp = openImage(image);
+			// If image could not be loaded, continue to next image.
+			if (imp == null) continue;
+			long ijId = imp.getID();
 
 			// Load ROIs
-			if (loadROIs) {
-				RoiManager rm = RoiManager.getRoiManager();
-				rm.reset(); // Reset ROI manager to clear previous ROIs
-				List<Roi> ijRois = ROIWrapper.toImageJ(image.getROIs(client));
-				for (Roi ijRoi : ijRois) {
-					ijRoi.setImage(imp);
-					rm.addRoi(ijRoi);
-				}
-			}
+			loadROIs(image, imp);
 
 			// Define paths
-			String title = imp.getTitle();
-			if ((title.matches("(.*)qptiff(.*)")))
-				title = title.replace(".qptiff", "_");
-			else title = FilenameUtils.removeExtension(title);
-			String res = dir + File.separator + title + extensionChosen + ".tif";
-			String attach = dir + File.separator + "Res_" + title + /* extensionChosen + */ "_" + todayDate() + ".xls";
+			String title = removeExtension(imp.getTitle());
+			String res = directoryOut + File.separator + title + extension + ".tif";
+			String attach = directoryOut + File.separator + "Res_" + title + /*extension +*/ "_" + todayDate() + ".xls";
+
 			imp.show();
 
 			// Analyse the images.
-			IJ.runMacroFile(macroChosen, appel);
+			IJ.runMacroFile(macro, appel);
 			appel = "1";
 
-			// Save and Close the various components
-			if (savRois) {
-				// save of ROIs
-				if (outputOnLocal) {  //  local save
-					RoiManager rm = RoiManager.getRoiManager();
-					rm.runCommand("Deselect"); // deselect ROIs to save them all
-					rm.runCommand("Save", dir + File.separator + title + "_" + todayDate() + "_RoiSet.zip");
-					if (saveImage) {  // image results expected
-						if (results) {
-							saveAndCloseWithRes(res, attach);
-						} else {
-							saveAndCloseWithoutRes(res);
-						}
-					} else {
-						if (results) {
-							saveResultsOnly(attach);
-						}
-					}
-				}
-				if (outputOnOMERO) { // save on Omero
-					if (saveImage) { // image results expected
-						if (results) {
-							saveAndCloseWithRes(res, attach);
-						} else {
-							saveAndCloseWithoutRes(res);
-						}
-					} else {
-						if (results) {
-							saveResultsOnly(attach);
-						}
-					}
-					mROIS.add(getRoisFromIJ(id, imp, property));
-				}
-			} else {
-				if (saveImage && outputOnLocal) { // image results expected
-					if (results) {
-						saveAndCloseWithRes(res, attach);
-					} else {
-						saveAndCloseWithoutRes(res);
-					}
-				} else {
-					if (results) {
-						saveResultsOnly(attach);
-					}
-				}
-			}
 			imp.changes = false; // Prevent "Save Changes?" dialog
 			imp = WindowManager.getCurrentImage();
-			if (imp == null) {
-				imaRes = false;
-			} else {
-				int newId = imp.getID(); // result image have to be selected in the end of the macro
-				if (newId == idocal) {
-					imaRes = false;
+			if (saveImage && imp != null && imp.getID() != ijId) {
+				List<Long> ids = saveImage(res);
+				if (!ids.isEmpty()) {
+					outputImageId = ids.get(0);
 				}
+			} else {
+				IJ.error("Impossible to save: output image must be different from input image.");
 			}
-			IJ.run("Close All"); //  To do local and Omero saves on the same time
-			pathsImages[index] = res;
-			pathsAttach[index] = attach;
+
+			saveROIs(outputImageId, imp, title, property);
+			saveResults(outputImageId, attach);
+
+			WindowManager.closeAllWindows(); //  To do local and Omero saves on the same time
 			index++;
 		}
-
-		bResults.setPathImages((Arrays.asList(pathsImages)));
-		bResults.setPathAttach((Arrays.asList(pathsAttach)));
-		bResults.setmROIS(mROIS);
-		bResults.setImageIds(imageIds);
-		bResults.setImaRes(imaRes);
 	}
 
 
-	void runMacroOnLocalImages(List<String> images,
-							   String macroChosen,
-							   String extensionChosen,
-							   String dir,
-							   boolean results,
-							   boolean savRois)
-	throws ServiceException, AccessException {
+	void runMacroOnLocalImages(List<String> images) {
 		//""" Run a macro on images from local computer and save the result """
-		int size = images.size();
 		String property = "ROI";
-		String[] pathsImages = new String[size];
-		String[] pathsAttach = new String[size];
-		IJ.run("Close All");
+		WindowManager.closeAllWindows();
 		String appel = "0";
-		List<Collection<ROIWrapper>> mROIS = new ArrayList<>();
-		boolean imaRes = true;
 		int index = 0;
-		for (String Image : images) {
+		for (String image : images) {
+
 			// Open the image
-			//IJ.open(Image);
-			//IJ.run("Stack to Images");
 			setState("image " + (index + 1) + "/" + images.size());
-			ImagePlus imp = IJ.openImage(Image);
-			long id = imp.getID();
-			IJ.run("Bio-Formats Importer",
+			ImagePlus imp = IJ.openImage(image);
+			long ijId = imp.getID();
+			/*IJ.run("Bio-Formats Importer",
 				   "open=" + Image +
-				   " autoscale color_mode=Default view=Hyperstack stack_order=XYCZT");
-			int l = imp.getHeight();
-			int h = imp.getWidth();
-			int b = imp.getBitDepth();
-			int f = imp.getFrame();
-			int c = imp.getChannel();
-			int s = imp.getSlice();
-			IJ.createHyperStack(Image, h, l, c, s, f, b);
-			//IJ.run("Images to Hyperstack");
-			//imp.createHyperStack(Image,C,S,F,B);
+				   " autoscale color_mode=Default view=Hyperstack stack_order=XYCZT");*/
 			// Define paths
-			String title = imp.getTitle();
-			if ((title
-					.matches("(.*)qptiff(.*)")))
-				title = title.replace(".qptiff", "_");
-			else title = FilenameUtils.removeExtension(title);
-			String res =
-					dir + File.separator + title + extensionChosen + ".tif";
-			String attach =
-					dir + File.separator + "Res_" +
-					title + /* extensionChosen + */ "_" + todayDate() +
-					".xls";
+			String title = removeExtension(imp.getTitle());
+			String res = directoryOut + File.separator + title + extension + ".tif";
+			String attach = directoryOut + File.separator + "Res_" + title + /*extension +*/ "_" + todayDate() + ".xls";
+
 			// Analyse the images
-			IJ.runMacroFile(macroChosen, appel);
+			IJ.runMacroFile(macro, appel);
 			appel = "1";
+
 			// Save and Close the various components
-			if (savRois) {
-				//  save of ROIs
-				RoiManager rm = RoiManager.getInstance2();
-				if (outputOnLocal) {  //  local save
-					rm.runCommand("Deselect"); // deselect ROIs to save them all
-					rm.runCommand("Save", dir + File.separator + title + "_" +
-										  todayDate() + "_RoiSet.zip");
-					if (saveImage) {
-						if (results) {
-							saveAndCloseWithRes(res, attach);
-						} else {
-							saveAndCloseWithoutRes(res);
-						}
-					} else {
-						if (results) {
-							saveResultsOnly(attach);
-						}
-					}
-				}
-				if (outputOnOMERO) {  // save on Omero
-					mROIS.add(getRoisFromIJ(id, imp, property));
-				}
-			} else {
-				if (saveImage && outputOnLocal) {  // image results expected
-					if (results) {
-						saveAndCloseWithRes(res, attach);
-					} else {
-						saveAndCloseWithoutRes(res);
-					}
-				} else {
-					if (results) {
-						saveResultsOnly(attach);
-					}
-				}
-			}
+			long outputImageId = -1L;
 			imp.changes = false; // Prevent "Save Changes?" dialog
-			imaRes = true;
 			imp = WindowManager.getCurrentImage();
-			if (imp == null) {
-				imaRes = false;
-			} else {
-				int newId = imp
-						.getID(); // result image have to be selected in the end of the macro
-				if (newId == id) {
-					imaRes = false;
+			if (saveImage && imp != null && imp.getID() != ijId) {
+				List<Long> ids = saveImage(res);
+				if (!ids.isEmpty()) {
+					outputImageId = ids.get(0);
 				}
+			} else {
+				IJ.error("Impossible to save: output image must be different from input image.");
 			}
-			IJ.run("Close All"); //  To do local and Omero saves on the same time
-			pathsImages[index] = res;
-			pathsAttach[index] = attach;
+
+			saveROIs(outputImageId, imp, title, property);
+			saveResults(outputImageId, attach);
+			WindowManager.closeAllWindows(); //  To do local and Omero saves on the same time
 			index++;
 		}
-		bResults.setPathImages((Arrays.asList(pathsImages)));
-		bResults.setPathAttach((Arrays.asList(pathsAttach)));
-		bResults.setmROIS(mROIS);
-		bResults.setImaRes(imaRes);
 	}
 
 
-	public int uploadROIS(List<Collection<ROIWrapper>> alROIS, Long id, int indice)
-	throws ExecutionException, AccessException, ServiceException {
-		if (alROIS.get(indice) != null) { // && (alROIS.get(indice)).size() > 0) { // Problem
-			setProgress("Importing ROIs");
-			ImageWrapper image = client.getImage(id);
-			for (ROIWrapper roi : alROIS.get(indice)) {
-				image.saveROI(client, roi);
+	private String removeExtension(String title) {
+		if (title.matches("(.*)qptiff(.*)")) {
+			return title.replace(".qptiff", "_");
+		} else {
+			return FilenameUtils.removeExtension(title);
+		}
+	}
+
+
+	private ImagePlus openImage(ImageWrapper image) {
+		setProgress("Opening image from OMERO...");
+		ImagePlus imp = null;
+		try {
+			imp = image.toImagePlus(client);
+		} catch (ExecutionException | ServiceException | AccessException e) {
+			IJ.error("Could not load image: " + e.getMessage());
+		}
+		return imp;
+	}
+
+
+	private void loadROIs(ImageWrapper image, ImagePlus imp) {
+		if (loadROIs) {
+			RoiManager rm = RoiManager.getRoiManager();
+			rm.reset(); // Reset ROI manager to clear previous ROIs
+			List<Roi> ijRois = new ArrayList<>();
+			try {
+				ijRois = ROIWrapper.toImageJ(image.getROIs(client));
+			} catch (ExecutionException | ServiceException | AccessException e) {
+				IJ.error("Could not import ROIs: " + e.getMessage());
 			}
-			return indice + 1;
+			for (Roi ijRoi : ijRois) {
+				ijRoi.setImage(imp);
+				rm.addRoi(ijRoi);
+			}
 		}
-		return indice;
 	}
 
 
-	public List<Long> importRoisInImage(List<Long> imagesIds,
-										List<Collection<ROIWrapper>> roisL)
-	throws ExecutionException, AccessException, ServiceException {
-		//""" Import Rois in Omero server on images and return ids of these images in datasetId """
-		int indice = 0;
-		long ind = 1;
-		for (Long id : imagesIds) {
-			indice = uploadROIS(roisL, id, indice);
-			setState("image " + ind + "/" + imagesIds.size());
-			ind++;
+	private List<Long> saveImage(String path) {
+		List<Long> ids = new ArrayList<>();
+		if (saveImage) {
+			IJ.saveAs("TIFF", path);
+			if (outputOnOMERO) {
+				try {
+					setProgress("Import on OMERO...");
+					DatasetWrapper dataset = client.getDataset(outputDatasetId);
+					ids = dataset.importImage(client, path);
+				} catch (Exception e) {
+					IJ.error("Could not import image: " + e.getMessage());
+				}
+			}
 		}
-		return imagesIds;
+		return ids;
 	}
 
 
-	public void uploadTagFiles(List<String> paths, List<Long> imageIds) {
-		//""" Attach result files from paths to images in omero """
-		for (int i = 0; i < paths.size(); i++) {
+	private void saveROIs(long imageId, ImagePlus imp, String title, String property) {
+		// save of ROIs
+		if (outputOnLocal) {  //  local save
+			RoiManager rm = RoiManager.getRoiManager();
+			rm.runCommand("Deselect"); // deselect ROIs to save them all
+			rm.runCommand("Save", directoryOut + File.separator + title + "_" + todayDate() + "_RoiSet.zip");
+		}
+		if (outputOnOMERO && imageId != -1L) { // save on Omero
+			List<ROIWrapper> rois = getRoisFromIJ(imp, property);
+			try {
+				ImageWrapper image = client.getImage(imageId);
+				if (clearROIs) {
+					deleteROIs(image);
+				}
+				for (ROIWrapper roi : rois) {
+					roi.setImage(image);
+					image.saveROI(client, roi);
+				}
+			} catch (ServiceException | AccessException | ExecutionException e) {
+				IJ.error("Could not import ROIs to OMERO: " + e.getMessage());
+			}
+
+		}
+	}
+
+
+	private void saveResults(long imageId, String path) {
+		if (saveResults) {
+			setProgress("Saving results files...");
+			IJ.saveAs("Results", path);
 			ImageWrapper image;
 			try {
-				image = client.getImage(imageIds.get(i));
-				image.addFile(client, new File(paths.get(i)));
+				setProgress("Attachment of results files...");
+				image = client.getImage(imageId);
+				image.addFile(client, new File(path));
 			} catch (ExecutionException | ServiceException | AccessException e) {
 				IJ.error("Error adding file to image:" + e.getMessage());
 			} catch (InterruptedException e) {
@@ -615,16 +418,6 @@ public class BatchRunner extends Thread {
 
 	public void setOutputDatasetId(Long outputDatasetId) {
 		if (outputDatasetId != null) this.outputDatasetId = outputDatasetId;
-	}
-
-
-	public long getInputProjectId() {
-		return inputProjectId;
-	}
-
-
-	public void setInputProjectId(Long inputProjectId) {
-		if (inputProjectId != null) this.inputProjectId = inputProjectId;
 	}
 
 
@@ -723,8 +516,8 @@ public class BatchRunner extends Thread {
 	}
 
 
-	public void setMacro(String macroChosen) {
-		this.macro = macroChosen;
+	public void setMacro(String macro) {
+		this.macro = macro;
 	}
 
 
@@ -733,8 +526,8 @@ public class BatchRunner extends Thread {
 	}
 
 
-	public void setExtension(String extensionChosen) {
-		this.extension = extensionChosen;
+	public void setExtension(String extension) {
+		this.extension = extension;
 	}
 
 
