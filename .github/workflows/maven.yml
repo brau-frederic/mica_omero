@@ -22,8 +22,8 @@ jobs:
         uses: actions/cache@v1
         with:
           path: ~/.m2
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-          restore-keys: ${{ runner.os }}-m2
+          key: ${{ runner.os }}-m2-${{ secrets.CACHE_VERSION }}-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2-${{ secrets.CACHE_VERSION }}
       - name: Append 'SNAPSHOT' to version if 'push' happened on 'main'
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
         run: |
