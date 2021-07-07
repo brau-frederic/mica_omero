@@ -113,9 +113,6 @@ public class BatchRunner extends Thread {
 		List<Long> imagesIds;
 		boolean imaRes;
 
-		System.out.print(outputOnLocal);
-		System.out.print(outputOnOMERO);
-
 		try {
 			if (!inputOnOMERO) {
 				setProgress("Temporary directory creation...");
@@ -364,12 +361,8 @@ public class BatchRunner extends Thread {
 			if ((title.matches("(.*)qptiff(.*)")))
 				title = title.replace(".qptiff", "_");
 			else title = FilenameUtils.removeExtension(title);
-			String res =
-					dir + File.separator + title + extensionChosen + ".tif";
-			String attach =
-					dir + File.separator + "Res_" +
-					title + /* extensionChosen + */ "_" + todayDate() +
-					".xls";
+			String res = dir + File.separator + title + extensionChosen + ".tif";
+			String attach = dir + File.separator + "Res_" + title + /* extensionChosen + */ "_" + todayDate() + ".xls";
 			imp.show();
 
 			// Analyse the images.
@@ -382,8 +375,7 @@ public class BatchRunner extends Thread {
 				if (outputOnLocal) {  //  local save
 					RoiManager rm = RoiManager.getRoiManager();
 					rm.runCommand("Deselect"); // deselect ROIs to save them all
-					rm.runCommand("Save", dir + File.separator + title + "_" +
-										  todayDate() + "_RoiSet.zip");
+					rm.runCommand("Save", dir + File.separator + title + "_" + todayDate() + "_RoiSet.zip");
 					if (saveImage) {  // image results expected
 						if (results) {
 							saveAndCloseWithRes(res, attach);
@@ -397,6 +389,17 @@ public class BatchRunner extends Thread {
 					}
 				}
 				if (outputOnOMERO) { // save on Omero
+					if (saveImage) { // image results expected
+						if (results) {
+							saveAndCloseWithRes(res, attach);
+						} else {
+							saveAndCloseWithoutRes(res);
+						}
+					} else {
+						if (results) {
+							saveResultsOnly(attach);
+						}
+					}
 					mROIS.add(getRoisFromIJ(id, imp, property));
 				}
 			} else {
