@@ -191,12 +191,15 @@ public class BatchWindow extends JFrame implements BatchListener {
 		macroBtn.addActionListener(e -> chooseMacro());
 		JPanel macro2 = new JPanel();
 		macro2.setLayout(new BoxLayout(macro2, BoxLayout.LINE_AXIS));
+		checkImage.addItemListener(this::updateOutput);
 		macro2.add(checkImage);
 		JPanel macro3 = new JPanel();
 		macro3.setLayout(new BoxLayout(macro3, BoxLayout.LINE_AXIS));
+		checkResults.addItemListener(this::updateOutput);
 		macro3.add(checkResults);
 		JPanel macro4 = new JPanel();
 		macro4.setLayout(new BoxLayout(macro4, BoxLayout.LINE_AXIS));
+		checkROIs.addItemListener(this::updateOutput);
 		macro4.add(checkROIs);
 		//choice of the macro
 		JPanel panelMacro = new JPanel();
@@ -217,9 +220,9 @@ public class BatchWindow extends JFrame implements BatchListener {
 		JLabel labelRecordoption = new JLabel("Where to save results :");
 		output2.add(labelRecordoption);
 		output2.add(onlineOutput);
-		onlineOutput.addItemListener(new CheckInOutListener());
+		onlineOutput.addItemListener(this::updateOutput);
 		output2.add(localOutput);
-		localOutput.addItemListener(new CheckInOutListener());
+		localOutput.addItemListener(this::updateOutput);
 
 		output3a.add(labelOutputProject);
 		output3a.add(projectListOut);
@@ -251,7 +254,7 @@ public class BatchWindow extends JFrame implements BatchListener {
 		// validation button
 		JPanel panelBtn = new JPanel();
 		panelBtn.add(start);
-		start.addActionListener(e -> start());
+		start.addActionListener(this::start);
 		cp.add(panelBtn);
 
 		long groupId = client.getCurrentGroupId();
@@ -361,6 +364,7 @@ public class BatchWindow extends JFrame implements BatchListener {
 														   null,
 														   null,
 														   null);
+		if(name == null) return;
 		try {
 			DatasetWrapper newDataset = project.addDataset(client, name, "");
 			id = newDataset.getId();
@@ -501,7 +505,7 @@ public class BatchWindow extends JFrame implements BatchListener {
 	}
 
 
-	public void start() {
+	public void start(ActionEvent e) {
 		ProgressDialog progress = new ProgressDialog();
 		BatchRunner runner = new BatchRunner(client, progress);
 		runner.addListener(this);
@@ -522,6 +526,7 @@ public class BatchWindow extends JFrame implements BatchListener {
 			DatasetWrapper dataset = datasets.get(index);
 			long inputDatasetId = dataset.getId();
 			runner.setInputDatasetId(inputDatasetId);
+			runner.setOutputDatasetId(inputDatasetId);
 			inputdata = true;
 		} else { // local.isSelected()
 			runner.setInputOnOMERO(false);
@@ -555,7 +560,7 @@ public class BatchWindow extends JFrame implements BatchListener {
 		runner.setExtension(extension.getText());
 
 		// record type
-		if (onlineOutput.isSelected()) { // inline record
+		if (onlineOutput.isSelected()) { // online record
 			index = datasetListOut.getSelectedIndex();
 			if (index == -1 || index > datasets.size()) {
 				errorWindow("Output: \nNo dataset selected");
@@ -617,7 +622,9 @@ public class BatchWindow extends JFrame implements BatchListener {
 				runner.setSaveROIs(checkROIs.isSelected());
 				if (onlineOutput.isSelected()) {
 					runner.setOutputOnOMERO(true);
-					runner.setOutputDatasetId(outputDatasetId);
+					if(checkImage.isSelected()) {
+						runner.setOutputDatasetId(outputDatasetId);
+					}
 				}
 				if (localOutput.isSelected()) {
 					runner.setOutputOnLocal(true);
@@ -635,29 +642,26 @@ public class BatchWindow extends JFrame implements BatchListener {
 	}
 
 
-	class CheckInOutListener implements ItemListener {
-		public void itemStateChanged(ItemEvent e) {
-			if (checkImage.isSelected()) {
-				panelOutput.remove(output3b);
-				panelOutput.add(output1);
-				if (onlineOutput.isSelected()) {
-					panelOutput.add(output3a);
-				} else {
-					panelOutput.remove(output3a);
-				}
+	private void updateOutput(ItemEvent e) {
+		if (checkImage.isSelected()) {
+			panelOutput.remove(output3b);
+			panelOutput.add(output1);
+			if (onlineOutput.isSelected()) {
+				panelOutput.add(output3a);
 			} else {
-				panelOutput.remove(output1);
 				panelOutput.remove(output3a);
-				panelOutput.remove(output3b);
 			}
-			if (localOutput.isSelected()) {
-				panelOutput.add(output3b);
-			} else {
-				panelOutput.remove(output3b);
-			}
-			BatchWindow.this.setVisible(true);
+		} else {
+			panelOutput.remove(output1);
+			panelOutput.remove(output3a);
+			panelOutput.remove(output3b);
 		}
-
+		if (localOutput.isSelected()) {
+			panelOutput.add(output3b);
+		} else {
+			panelOutput.remove(output3b);
+		}
+		this.setVisible(true);
 	}
 
 

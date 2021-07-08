@@ -60,6 +60,7 @@ public class ProgressDialog extends JFrame implements ProcessingProgress {
 
 	@Override
 	public void setDone() {
+		setState("");
 		setProgress("Task completed!");
 		ok.setEnabled(true);
 	}

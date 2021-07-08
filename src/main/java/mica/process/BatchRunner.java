@@ -1,6 +1,7 @@
 package mica.process;
 
 import fr.igred.omero.Client;
+import fr.igred.omero.annotations.TableWrapper;
 import fr.igred.omero.exception.AccessException;
 import fr.igred.omero.exception.OMEROServerError;
 import fr.igred.omero.exception.ServiceException;
@@ -12,6 +13,7 @@ import ij.ImagePlus;
 import ij.WindowManager;
 import ij.gui.Overlay;
 import ij.gui.Roi;
+import ij.measure.ResultsTable;
 import ij.plugin.frame.RoiManager;
 import mica.gui.ProgressDialog;
 import org.apache.commons.io.FilenameUtils;
@@ -20,11 +22,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Logger;
 
@@ -33,6 +31,8 @@ public class BatchRunner extends Thread {
 
 	private final Client client;
 	private final ProcessingProgress progress;
+
+	private final Map<String, TableWrapper> tables = new HashMap<>();
 
 	private boolean inputOnOMERO;
 	private boolean saveImage;
@@ -66,13 +66,13 @@ public class BatchRunner extends Thread {
 	}
 
 
-	private void setProgress(String text) {
-		if (progress != null) progress.setProgress(text);
+	private void setState(String text) {
+		if (progress != null) progress.setState(text);
 	}
 
 
-	private void setState(String text) {
-		if (progress != null) progress.setState(text);
+	private void setProgress(String text) {
+		if (progress != null) progress.setProgress(text);
 	}
 
 
@@ -100,34 +100,36 @@ public class BatchRunner extends Thread {
 
 		try {
 			if (!outputOnLocal) {
-				setProgress("Temporary directory creation...");
+				setState("Temporary directory creation...");
 				directoryOut = Files.createTempDirectory("Fiji_analysis").toString();
 			}
 
 			if (inputOnOMERO) {
-				setProgress("Images recovery from OMERO...");
+				setState("Images recovery from OMERO...");
 				DatasetWrapper dataset = client.getDataset(inputDatasetId);
 				List<ImageWrapper> images = dataset.getImages(client);
-				setProgress("Macro running...");
+				setState("Macro running...");
 				runMacro(images);
 			} else {
-				setProgress("Images recovery from input folder...");
+				setState("Images recovery from input folder...");
 				List<String> images = getImagesFromDirectory(getDirectoryIn());
-				setProgress("Macro running...");
+				setState("Macro running...");
 				runMacroOnLocalImages(images);
 			}
-			setState("");
+			setProgress("");
+			uploadTables();
 
 			if (!outputOnLocal) {
-				setProgress("Temporary directory deletion...");
+				setState("Temporary directory deletion...");
 				if (!deleteTemp(directoryOut)) {
 					IJ.log("Temp directory may not be deleted.");
 				}
 			}
+			setState("");
 			setDone();
 		} catch (Exception e3) {
 			setDone();
-			setState("Macro cancelled");
+			setProgress("Macro cancelled");
 			if (e3.getMessage() != null && e3.getMessage().equals("Macro cancelled")) {
 				IJ.run("Close");
 			}
@@ -138,8 +140,8 @@ public class BatchRunner extends Thread {
 	}
 
 
-	public void deleteROIs(ImageWrapper image) {
-		setProgress("ROIs deletion from OMERO");
+	private void deleteROIs(ImageWrapper image) {
+		setState("ROIs deletion from OMERO");
 		try {
 			List<ROIWrapper> rois = image.getROIs(client);
 			for (ROIWrapper roi : rois) {
@@ -154,7 +156,7 @@ public class BatchRunner extends Thread {
 	}
 
 
-	public List<String> getImagesFromDirectory(String directory) {
+	private List<String> getImagesFromDirectory(String directory) {
 		//""" List all image's paths contained in a directory """
 		File dir = new File(directory);
 		File[] files = dir.listFiles();
@@ -167,17 +169,23 @@ public class BatchRunner extends Thread {
 	}
 
 
+	private List<Roi> getIJRois(ImagePlus imp) {
+		List<Roi> ijRois = new ArrayList<>();
+		Overlay overlay = imp.getOverlay();
+		if (overlay != null) {
+			ijRois.addAll(Arrays.asList(overlay.toArray()));
+		}
+		RoiManager manager = RoiManager.getRoiManager();
+		ijRois.addAll(Arrays.asList(manager.getRoisAsArray()));
+		for (Roi roi : ijRois) roi.setImage(imp);
+		return ijRois;
+	}
+
+
 	private List<ROIWrapper> getRoisFromIJ(ImagePlus imp, String property) {
 		List<ROIWrapper> rois = new ArrayList<>();
 		if (imp != null) {
-			List<Roi> ijRois = new ArrayList<>();
-			Overlay overlay = imp.getOverlay();
-			if (overlay != null) {
-				ijRois.addAll(Arrays.asList(overlay.toArray()));
-			}
-			RoiManager manager = RoiManager.getRoiManager();
-			ijRois.addAll(Arrays.asList(manager.getRoisAsArray()));
-			for (Roi roi : ijRois) roi.setImage(imp);
+			List<Roi> ijRois = getIJRois(imp);
 			rois = ROIWrapper.fromImageJ(ijRois, property);
 		}
 
@@ -185,7 +193,7 @@ public class BatchRunner extends Thread {
 	}
 
 
-	String todayDate() {
+	private String todayDate() {
 		return new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(new Date());
 	}
 
@@ -197,7 +205,7 @@ public class BatchRunner extends Thread {
 		String appel = "0";
 		int index = 0;
 		for (ImageWrapper image : images) {
-			setState("Image " + (index + 1) + "/" + images.size());
+			setProgress("Image " + (index + 1) + "/" + images.size());
 			long outputImageId = image.getId();
 
 			// Open image from OMERO
@@ -211,8 +219,6 @@ public class BatchRunner extends Thread {
 
 			// Define paths
 			String title = removeExtension(imp.getTitle());
-			String res = directoryOut + File.separator + title + extension + ".tif";
-			String attach = directoryOut + File.separator + "Res_" + title + /*extension +*/ "_" + todayDate() + ".xls";
 
 			imp.show();
 
@@ -223,7 +229,7 @@ public class BatchRunner extends Thread {
 			imp.changes = false; // Prevent "Save Changes?" dialog
 			imp = WindowManager.getCurrentImage();
 			if (imp != null && imp.getID() != ijId) {
-				List<Long> ids = saveImage(res);
+				List<Long> ids = saveImage(title);
 				if (!ids.isEmpty()) {
 					outputImageId = ids.get(0);
 				}
@@ -232,7 +238,7 @@ public class BatchRunner extends Thread {
 			}
 
 			saveROIs(outputImageId, imp, title, property);
-			saveResults(outputImageId, attach);
+			saveResults(imp, outputImageId, title, property);
 
 			WindowManager.closeAllWindows(); //  To do local and Omero saves on the same time
 			index++;
@@ -249,27 +255,26 @@ public class BatchRunner extends Thread {
 		for (String image : images) {
 
 			// Open the image
-			setState("image " + (index + 1) + "/" + images.size());
+			setProgress("image " + (index + 1) + "/" + images.size());
 			ImagePlus imp = IJ.openImage(image);
 			long ijId = imp.getID();
 			/*IJ.run("Bio-Formats Importer",
 				   "open=" + Image +
 				   " autoscale color_mode=Default view=Hyperstack stack_order=XYCZT");*/
-			// Define paths
+
+			// Remove extension from title
 			String title = removeExtension(imp.getTitle());
-			String res = directoryOut + File.separator + title + extension + ".tif";
-			String attach = directoryOut + File.separator + "Res_" + title + /*extension +*/ "_" + todayDate() + ".xls";
 
 			// Analyse the images
 			IJ.runMacroFile(macro, appel);
 			appel = "1";
 
 			// Save and Close the various components
-			long outputImageId = -1L;
+			Long outputImageId = null;
 			imp.changes = false; // Prevent "Save Changes?" dialog
 			imp = WindowManager.getCurrentImage();
 			if (saveImage && imp != null && imp.getID() != ijId) {
-				List<Long> ids = saveImage(res);
+				List<Long> ids = saveImage(title);
 				if (!ids.isEmpty()) {
 					outputImageId = ids.get(0);
 				}
@@ -278,7 +283,7 @@ public class BatchRunner extends Thread {
 			}
 
 			saveROIs(outputImageId, imp, title, property);
-			saveResults(outputImageId, attach);
+			saveResults(imp, outputImageId, title, property);
 			WindowManager.closeAllWindows(); //  To do local and Omero saves on the same time
 			index++;
 		}
@@ -295,7 +300,7 @@ public class BatchRunner extends Thread {
 
 
 	private ImagePlus openImage(ImageWrapper image) {
-		setProgress("Opening image from OMERO...");
+		setState("Opening image from OMERO...");
 		ImagePlus imp = null;
 		try {
 			imp = image.toImagePlus(client);
@@ -324,13 +329,14 @@ public class BatchRunner extends Thread {
 	}
 
 
-	private List<Long> saveImage(String path) {
+	private List<Long> saveImage(String title) {
 		List<Long> ids = new ArrayList<>();
 		if (saveImage) {
+			String path = directoryOut + File.separator + title + extension + ".tif";
 			IJ.saveAs("TIFF", path);
 			if (outputOnOMERO) {
 				try {
-					setProgress("Import on OMERO...");
+					setState("Import on OMERO...");
 					DatasetWrapper dataset = client.getDataset(outputDatasetId);
 					ids = dataset.importImage(client, path);
 				} catch (Exception e) {
@@ -342,14 +348,16 @@ public class BatchRunner extends Thread {
 	}
 
 
-	private void saveROIs(long imageId, ImagePlus imp, String title, String property) {
+	private void saveROIs(Long imageId, ImagePlus imp, String title, String property) {
 		// save of ROIs
 		if (outputOnLocal) {  //  local save
+			setState("Saving ROIs...");
 			RoiManager rm = RoiManager.getRoiManager();
 			rm.runCommand("Deselect"); // deselect ROIs to save them all
 			rm.runCommand("Save", directoryOut + File.separator + title + "_" + todayDate() + "_RoiSet.zip");
 		}
-		if (outputOnOMERO && imageId != -1L) { // save on Omero
+		if (outputOnOMERO && imageId != null) { // save on Omero
+			setState("Saving ROIs on OMERO...");
 			List<ROIWrapper> rois = getRoisFromIJ(imp, property);
 			try {
 				ImageWrapper image = client.getImage(imageId);
@@ -368,14 +376,44 @@ public class BatchRunner extends Thread {
 	}
 
 
-	private void saveResults(long imageId, String path) {
+	private void saveResults(ImagePlus imp, Long imageId, String title, String property) {
 		if (saveResults) {
-			setProgress("Saving results files...");
-			IJ.saveAs("Results", path);
-			ImageWrapper image;
+			String resultsName = null;
+			List<Roi> ijRois = getIJRois(imp);
+			setState("Saving results files...");
+			ResultsTable rt = ResultsTable.getResultsTable();
+			if(rt != null) {
+				resultsName = rt.getTitle();
+				String path = directoryOut + File.separator + resultsName + "_" + title + "_" + todayDate() + ".csv";
+				rt.save(path);
+				if (outputOnOMERO) {
+					appendTable(rt, imageId, ijRois, property);
+					uploadFile(imageId, path);
+				}
+			}
+			String[] candidates = WindowManager.getNonImageTitles();
+			for (String candidate : candidates) {
+				rt = ResultsTable.getResultsTable(candidate);
+
+				// Skip if rt is null or if results already processed
+				if(rt == null || !rt.getTitle().equals(resultsName)) continue;
+
+				String path = directoryOut + File.separator + candidate + "_" + title + "_" + todayDate() + ".csv";
+				rt.save(path);
+				if (outputOnOMERO) {
+					appendTable(rt, imageId, ijRois, property);
+					uploadFile(imageId, path);
+				}
+			}
+		}
+	}
+
+
+	private void uploadFile(Long imageId, String path) {
+		if(imageId != null) {
 			try {
-				setProgress("Attachment of results files...");
-				image = client.getImage(imageId);
+				setState("Uploading results files...");
+				ImageWrapper image = client.getImage(imageId);
 				image.addFile(client, new File(path));
 			} catch (ExecutionException | ServiceException | AccessException e) {
 				IJ.error("Error adding file to image:" + e.getMessage());
@@ -387,7 +425,44 @@ public class BatchRunner extends Thread {
 	}
 
 
-	public boolean deleteTemp(String tmpDir) {
+	private void appendTable(ResultsTable results, Long imageId, List<Roi> ijRois, String property) {
+		String resultsName = results.getTitle();
+		TableWrapper table = tables.get(resultsName);
+		try {
+			if (table == null) {
+				tables.put(resultsName, new TableWrapper(client, results, imageId, ijRois, property));
+			} else {
+				table.addRows(client, results, imageId, ijRois, property);
+			}
+		} catch (ServiceException | AccessException | ExecutionException e) {
+			IJ.error("Could not create or append table: " + e.getMessage());
+		}
+	}
+
+
+	private void uploadTables() {
+		if (outputOnOMERO) {
+			setState("Uploading tables...");
+			try {
+				DatasetWrapper dataset = client.getDataset(outputDatasetId);
+				for (Map.Entry<String, TableWrapper> entry : tables.entrySet()) {
+					String name = entry.getKey();
+					TableWrapper table = entry.getValue();
+					String timestamp = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(new Date());
+					String newName;
+					if (name == null || name.equals("")) newName = timestamp + "_" + table.getName();
+					else newName = timestamp + "_" + name;
+					table.setName(newName);
+					dataset.addTable(client, table);
+				}
+			} catch (ExecutionException | ServiceException | AccessException e) {
+				IJ.error("Could not save table: " + e.getMessage());
+			}
+		}
+	}
+
+
+	private boolean deleteTemp(String tmpDir) {
 		//""" Delete the local copy of temporary files and directory """
 		boolean deleted = true;
 		File dir = new File(tmpDir);
