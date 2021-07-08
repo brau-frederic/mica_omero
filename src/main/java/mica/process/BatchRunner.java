@@ -215,7 +215,7 @@ public class BatchRunner extends Thread {
 			long ijId = imp.getID();
 
 			// Load ROIs
-			loadROIs(image, imp);
+			if(loadROIs) loadROIs(image, imp);
 
 			// Define paths
 			String title = removeExtension(imp.getTitle());
@@ -312,19 +312,17 @@ public class BatchRunner extends Thread {
 
 
 	private void loadROIs(ImageWrapper image, ImagePlus imp) {
-		if (loadROIs) {
-			RoiManager rm = RoiManager.getRoiManager();
-			rm.reset(); // Reset ROI manager to clear previous ROIs
-			List<Roi> ijRois = new ArrayList<>();
-			try {
-				ijRois = ROIWrapper.toImageJ(image.getROIs(client));
-			} catch (ExecutionException | ServiceException | AccessException e) {
-				IJ.error("Could not import ROIs: " + e.getMessage());
-			}
-			for (Roi ijRoi : ijRois) {
-				ijRoi.setImage(imp);
-				rm.addRoi(ijRoi);
-			}
+		RoiManager rm = RoiManager.getRoiManager();
+		rm.reset(); // Reset ROI manager to clear previous ROIs
+		List<Roi> ijRois = new ArrayList<>();
+		try {
+			ijRois = ROIWrapper.toImageJ(image.getROIs(client));
+		} catch (ExecutionException | ServiceException | AccessException e) {
+			IJ.error("Could not import ROIs: " + e.getMessage());
+		}
+		for (Roi ijRoi : ijRois) {
+			ijRoi.setImage(imp);
+			rm.addRoi(ijRoi);
 		}
 	}
 
