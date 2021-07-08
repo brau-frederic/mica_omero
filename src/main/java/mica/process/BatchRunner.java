@@ -15,9 +15,11 @@ import ij.gui.Overlay;
 import ij.gui.Roi;
 import ij.measure.ResultsTable;
 import ij.plugin.frame.RoiManager;
+import ij.text.TextWindow;
 import mica.gui.ProgressDialog;
 import org.apache.commons.io.FilenameUtils;
 
+import java.awt.Frame;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -49,6 +51,8 @@ public class BatchRunner extends Thread {
 	private String macro;
 	private String extension;
 
+	private RoiManager rm;
+
 	private BatchListener listener;
 
 
@@ -63,6 +67,12 @@ public class BatchRunner extends Thread {
 		super();
 		this.client = client;
 		this.progress = progress;
+	}
+
+
+	private void initRoiManager() {
+		rm = RoiManager.getInstance2();
+		if(rm == null) rm = RoiManager.getRoiManager();
 	}
 
 
@@ -175,8 +185,7 @@ public class BatchRunner extends Thread {
 		if (overlay != null) {
 			ijRois.addAll(Arrays.asList(overlay.toArray()));
 		}
-		RoiManager manager = RoiManager.getRoiManager();
-		ijRois.addAll(Arrays.asList(manager.getRoisAsArray()));
+		ijRois.addAll(Arrays.asList(rm.getRoisAsArray()));
 		for (Roi roi : ijRois) roi.setImage(imp);
 		return ijRois;
 	}
@@ -214,6 +223,9 @@ public class BatchRunner extends Thread {
 			if (imp == null) continue;
 			long ijId = imp.getID();
 
+			// Initialize ROI Manager
+			initRoiManager();
+
 			// Load ROIs
 			if(loadROIs) loadROIs(image, imp);
 
@@ -239,8 +251,7 @@ public class BatchRunner extends Thread {
 
 			saveROIs(outputImageId, imp, title, property);
 			saveResults(imp, outputImageId, title, property);
-
-			WindowManager.closeAllWindows(); //  To do local and Omero saves on the same time
+			closeWindows();
 			index++;
 		}
 	}
@@ -261,6 +272,9 @@ public class BatchRunner extends Thread {
 			/*IJ.run("Bio-Formats Importer",
 				   "open=" + Image +
 				   " autoscale color_mode=Default view=Hyperstack stack_order=XYCZT");*/
+
+			// Initialize ROI Manager
+			initRoiManager();
 
 			// Remove extension from title
 			String title = removeExtension(imp.getTitle());
@@ -283,8 +297,7 @@ public class BatchRunner extends Thread {
 			}
 
 			saveROIs(outputImageId, imp, title, property);
-			saveResults(imp, outputImageId, title, property);
-			WindowManager.closeAllWindows(); //  To do local and Omero saves on the same time
+			closeWindows();
 			index++;
 		}
 	}
@@ -312,7 +325,6 @@ public class BatchRunner extends Thread {
 
 
 	private void loadROIs(ImageWrapper image, ImagePlus imp) {
-		RoiManager rm = RoiManager.getRoiManager();
 		rm.reset(); // Reset ROI manager to clear previous ROIs
 		List<Roi> ijRois = new ArrayList<>();
 		try {
@@ -350,7 +362,6 @@ public class BatchRunner extends Thread {
 		// save of ROIs
 		if (outputOnLocal) {  //  local save
 			setState("Saving ROIs...");
-			RoiManager rm = RoiManager.getRoiManager();
 			rm.runCommand("Deselect"); // deselect ROIs to save them all
 			rm.runCommand("Save", directoryOut + File.separator + title + "_" + todayDate() + "_RoiSet.zip");
 		}
@@ -394,7 +405,7 @@ public class BatchRunner extends Thread {
 				rt = ResultsTable.getResultsTable(candidate);
 
 				// Skip if rt is null or if results already processed
-				if(rt == null || !rt.getTitle().equals(resultsName)) continue;
+				if(rt == null || rt.getTitle().equals(resultsName)) continue;
 
 				String path = directoryOut + File.separator + candidate + "_" + title + "_" + todayDate() + ".csv";
 				rt.save(path);
@@ -476,6 +487,16 @@ public class BatchRunner extends Thread {
 			}
 		}
 		return deleted;
+	}
+
+
+	private void closeWindows() {
+		for (Frame frame : WindowManager.getNonImageWindows()) {
+			if (frame instanceof TextWindow) {
+				((TextWindow) frame).close(false);
+			}
+		}
+		WindowManager.closeAllWindows(); //  To do local and Omero saves on the same time
 	}
 
 
