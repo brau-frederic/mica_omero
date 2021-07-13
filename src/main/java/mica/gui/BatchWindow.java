@@ -59,7 +59,7 @@ public class BatchWindow extends JFrame implements BatchListener {
 	// choice of output
 	private final JPanel panelOutput = new JPanel();
 	private final JPanel output1 = new JPanel();
-	private final JTextField extension = new JTextField(10);
+	private final JTextField suffix = new JTextField(10);
 
 	// Omero or local => checkbox
 	private final JCheckBox onlineOutput = new JCheckBox("OMERO");
@@ -212,8 +212,8 @@ public class BatchWindow extends JFrame implements BatchListener {
 
 		JLabel labelExtension = new JLabel("Suffix of output files :");
 		output1.add(labelExtension);
-		output1.add(extension);
-		extension.setText("_macro");
+		output1.add(suffix);
+		suffix.setText("_macro");
 
 		JPanel output2 = new JPanel();
 		JLabel labelRecordOption = new JLabel("Where to save results :");
@@ -268,6 +268,11 @@ public class BatchWindow extends JFrame implements BatchListener {
 	}
 
 
+	private String idLabel(long id) {
+		return String.format("ID = %d", id);
+	}
+
+
 	public void errorWindow(String message) {
 		showMessageDialog(null, message, "Error", JOptionPane.ERROR_MESSAGE);
 	}
@@ -298,7 +303,7 @@ public class BatchWindow extends JFrame implements BatchListener {
 			if (source instanceof JComboBox<?>) {
 				int datasetId = ((JComboBox<?>) source).getSelectedIndex();
 				DatasetWrapper dataset = datasets.get(datasetId);
-				labelInputDataset.setText("ID = " + dataset.getId());
+				labelInputDataset.setText(idLabel(dataset.getId()));
 			}
 		}
 	}
@@ -311,7 +316,7 @@ public class BatchWindow extends JFrame implements BatchListener {
 				int index = ((JComboBox<?>) source).getSelectedIndex();
 				ProjectWrapper project = userProjects.get(index);
 				this.datasets = project.getDatasets();
-				labelInputProject.setText("ID = " + project.getId());
+				labelInputProject.setText(idLabel(project.getId()));
 				datasetListIn.removeAllItems();
 				for (DatasetWrapper dataset : project.getDatasets()) {
 					datasetListIn.addItem(dataset.getName());
@@ -328,7 +333,7 @@ public class BatchWindow extends JFrame implements BatchListener {
 			if (source instanceof JComboBox<?>) {
 				int datasetId = ((JComboBox<?>) source).getSelectedIndex();
 				DatasetWrapper dataset = myDatasets.get(datasetId);
-				labelOutputDataset.setText("ID = " + dataset.getId());
+				labelOutputDataset.setText(idLabel(dataset.getId()));
 			}
 		}
 	}
@@ -341,7 +346,7 @@ public class BatchWindow extends JFrame implements BatchListener {
 				int index = ((JComboBox<?>) source).getSelectedIndex();
 				ProjectWrapper project = myProjects.get(index);
 				this.myDatasets = project.getDatasets();
-				labelOutputProject.setText("ID = " + project.getId());
+				labelOutputProject.setText(idLabel(project.getId()));
 				datasetListOut.removeAllItems();
 				for (DatasetWrapper dataset : project.getDatasets()) {
 					datasetListOut.addItem(dataset.getName());
@@ -363,7 +368,7 @@ public class BatchWindow extends JFrame implements BatchListener {
 														   null,
 														   null,
 														   null);
-		if(name == null) return;
+		if (name == null) return;
 		try {
 			DatasetWrapper newDataset = project.addDataset(client, name, "");
 			id = newDataset.getId();
@@ -418,7 +423,7 @@ public class BatchWindow extends JFrame implements BatchListener {
 				IJ.log(exception.getMessage());
 			}
 
-			labelGroupName.setText("ID = " + id);
+			labelGroupName.setText(idLabel(id));
 			try {
 				GroupWrapper group = client.getGroup(groupName);
 				users = group.getExperimenters();
@@ -465,12 +470,8 @@ public class BatchWindow extends JFrame implements BatchListener {
 				textField.setText(absDir.toString());
 			} else {
 				////find a way to prevent JFileChooser closure?
-				errorWindow("Output: \nThe directory doesn't exist");
+				errorWindow(String.format("Output:%nThe directory doesn't exist"));
 			}
-		}
-		if (returnVal == JFileChooser.CANCEL_OPTION &&
-			textField.getText().equals("")) {
-			warningWindow("Output: \nNo directory selected");
 		}
 	}
 
@@ -481,19 +482,13 @@ public class BatchWindow extends JFrame implements BatchListener {
 		macroChoice.setFileSelectionMode(JFileChooser.FILES_ONLY);
 		int returnVal = macroChoice.showOpenDialog(null);
 		if (returnVal == JFileChooser.APPROVE_OPTION) {
-			File absFile = new File(macroChoice.getSelectedFile()
-											   .getAbsolutePath());
+			File absFile = new File(macroChoice.getSelectedFile().getAbsolutePath());
 			if (absFile.exists() && !absFile.isDirectory()) {
 				macro.setText(absFile.toString());
 			} else {
 				//find a way to prevent JFileChooser closure?
-				warningWindow("Macro: \nThe file doesn't exist");
+				warningWindow(String.format("Macro:%nThe file doesn't exist"));
 			}
-		}
-		if (returnVal == JFileChooser.CANCEL_OPTION &&
-			macro.getText().equals("")) {
-			// warn user if macro selection canceled without any previous choice
-			warningWindow("Macro: \nNo macro selected");
 		}
 	}
 
@@ -510,130 +505,51 @@ public class BatchWindow extends JFrame implements BatchListener {
 		runner.addListener(this);
 
 		// initiation of success variables
-		boolean intputData = false;
-		boolean macroData = false;
-		boolean omeroRecord = false;
-		boolean localRecord = false;
-		boolean recordType = false;
-		boolean sens = true;
-		int index;
+		boolean checkInput;
+		boolean checkMacro = getMacro();
+		boolean checkOutput = getOutput();
 
 		// input data
 		if (omero.isSelected()) {
 			runner.setInputOnOMERO(true);
-			index = datasetListIn.getSelectedIndex();
+			int index = datasetListIn.getSelectedIndex();
 			DatasetWrapper dataset = datasets.get(index);
 			long inputDatasetId = dataset.getId();
 			runner.setInputDatasetId(inputDatasetId);
 			runner.setOutputDatasetId(inputDatasetId);
-			intputData = true;
+			checkInput = true;
 		} else { // local.isSelected()
 			runner.setInputOnOMERO(false);
-			if (inputFolder.getText().equals("")) {
-				errorWindow("Input: \nNo directory selected");
-			} else {
-				directoryIn = inputFolder.getText();
-				File directoryInF = new File(directoryIn);
-				if (directoryInF.exists() && directoryInF.isDirectory()) {
-					intputData = true;
-				} else {
-					errorWindow("Input: \nThe directory " + directoryIn + " doesn't exist");
-				}
-			}
-		}
-
-		// macro file (mandatory)
-		if (macro.getText().equals("")) {
-			errorWindow("Macro: \nNo macro selected");
-		} else {
-			macroChosen = macro.getText();
-			File macroFile = new File(macroChosen);
-			if (macroFile.exists() && !macroFile.isDirectory()) {
-				macroData = true;
-			} else {
-				errorWindow("Macro: \nThe file " + macroChosen + " doesn't exist");
-			}
+			checkInput = getLocalInput();
 		}
 
 		// suffix
-		runner.setExtension(extension.getText());
+		runner.setSuffix(suffix.getText());
 
-		// record type
-		if (onlineOutput.isSelected()) { // online record
-			index = datasetListOut.getSelectedIndex();
-			if (index == -1 || index > datasets.size()) {
-				errorWindow("Output: \nNo dataset selected");
-				omeroRecord = false;
-			} else {
-				omeroRecord = true;
-			}
-			DatasetWrapper dataset = datasets.get(index);
-			outputDatasetId = dataset.getId();
-		}
-		if (localOutput.isSelected()) { // local record
-			if (directory.getText().equals("")) {
-				errorWindow("Output: \nNo directory selected");
-				localRecord = false;
-			} else {
-				directoryOut = directory.getText();
-				File directoryOutFile = new File(directoryOut);
-				if (directoryOutFile.exists() &&
-					directoryOutFile.isDirectory()) {
-					localRecord = true;
-				} else {
-					errorWindow("Output: \nThe directory " + directoryOut +
-								" doesn't exist");
-					localRecord = false;
+		if (checkInput && checkMacro && checkOutput) {
+			runner.setLoadROIS(checkLoadROIs.isSelected());
+			runner.setClearROIS(checkDelROIs.isSelected());
+			runner.setSaveImage(checkImage.isSelected());
+			runner.setSaveResults(checkResults.isSelected());
+			runner.setSaveROIs(checkROIs.isSelected());
+			if (onlineOutput.isSelected()) {
+				runner.setOutputOnOMERO(true);
+				if (checkImage.isSelected()) {
+					runner.setOutputDatasetId(outputDatasetId);
 				}
 			}
-		}
+			if (localOutput.isSelected()) {
+				runner.setOutputOnLocal(true);
+				runner.setDirectoryIn(directoryIn);
+				runner.setDirectoryOut(directoryOut);
+			}
 
-		if (!onlineOutput.isSelected() && !localOutput.isSelected()) {
-			errorWindow("Output: \nYou have to choose the localisation to save the results");
-		} else if (omeroRecord || localRecord) {
-			recordType = true;
-		}
-
-		if (!checkResults.isSelected() && !checkROIs.isSelected() && !checkImage.isSelected()) {
-			errorWindow("Macro: \nYou have to choose at least one output");
-			sens = false;
-		}
-
-
-		if (local.isSelected() && onlineOutput.isSelected() && !checkImage.isSelected()) {
-			errorWindow("Output: \nYou can't upload results file or ROIs on OMERO if your image isn't in OMERO");
-			sens = false;
-		}
-
-		if (checkDelROIs.isSelected() && (!onlineOutput.isSelected()) || !checkROIs.isSelected()) {
-			errorWindow("ROIs: \nYou can't clear ROIs if you don't save ROIs on OMERO");
-			sens = false;
-		}
-
-		if (intputData && macroData && recordType && sens) {
+			runner.setMacro(macroChosen);
+			start.setEnabled(false);
 			try {
-				runner.setLoadROIS(checkLoadROIs.isSelected());
-				runner.setClearROIS(checkDelROIs.isSelected());
-				runner.setSaveImage(checkImage.isSelected());
-				runner.setSaveResults(checkResults.isSelected());
-				runner.setSaveROIs(checkROIs.isSelected());
-				if (onlineOutput.isSelected()) {
-					runner.setOutputOnOMERO(true);
-					if(checkImage.isSelected()) {
-						runner.setOutputDatasetId(outputDatasetId);
-					}
-				}
-				if (localOutput.isSelected()) {
-					runner.setOutputOnLocal(true);
-					runner.setDirectoryIn(directoryIn);
-					runner.setDirectoryOut(directoryOut);
-				}
-
-				runner.setMacro(macroChosen);
-				start.setEnabled(false);
 				runner.start();
-			} catch (Exception e2) {
-				errorWindow(e2.getMessage());
+			} catch (Exception exception) {
+				errorWindow(exception.getMessage());
 			}
 		}
 	}
@@ -661,5 +577,125 @@ public class BatchWindow extends JFrame implements BatchListener {
 		this.setVisible(true);
 	}
 
+
+	private boolean getLocalInput() {
+		boolean check = false;
+		if (inputFolder.getText().equals("")) {
+			errorWindow(String.format("Input:%nNo directory selected"));
+		} else {
+			directoryIn = inputFolder.getText();
+			File directoryInF = new File(directoryIn);
+			if (directoryInF.exists() && directoryInF.isDirectory()) {
+				check = true;
+			} else {
+				String msg = String.format("Input:%n The directory %s does not exist", directoryIn);
+				errorWindow(msg);
+			}
+		}
+		return check;
+	}
+
+
+	private boolean getMacro() {
+		boolean check = false;
+		// macro file (mandatory)
+		if (macro.getText().equals("")) {
+			errorWindow(String.format("Macro:%nNo macro selected"));
+		} else {
+			macroChosen = macro.getText();
+			File macroFile = new File(macroChosen);
+			if (macroFile.exists() && !macroFile.isDirectory()) {
+				check = true;
+			} else {
+				String msg = String.format("Macro:%n The file %s does not exist", macroChosen);
+				errorWindow(msg);
+			}
+		}
+		return check;
+	}
+
+
+	private boolean getOMEROOutput() {
+		boolean check = false;
+		if (onlineOutput.isSelected()) {
+			int index = datasetListOut.getSelectedIndex();
+			if (index == -1 || index > datasets.size()) {
+				errorWindow(String.format("Output:%nNo dataset selected"));
+			} else {
+				check = true;
+				DatasetWrapper dataset = datasets.get(index);
+				outputDatasetId = dataset.getId();
+			}
+		}
+		return check;
+	}
+
+
+	private boolean getLocalOutput() {
+		boolean check = false;
+		if (localOutput.isSelected()) {
+			if (directory.getText().equals("")) {
+				errorWindow(String.format("Output:%nNo directory selected"));
+			} else {
+				directoryOut = directory.getText();
+				File directoryOutFile = new File(directoryOut);
+				if (directoryOutFile.exists() && directoryOutFile.isDirectory()) {
+					check = true;
+				} else {
+					String msg = String.format("Output:%n The directory %s does not exist", directoryOut);
+					errorWindow(msg);
+				}
+			}
+		}
+		return check;
+	}
+
+
+	private boolean checkDeleteROIs() {
+		boolean check = true;
+		if (checkDelROIs.isSelected() && (!onlineOutput.isSelected()) || !checkROIs.isSelected()) {
+			errorWindow(String.format("ROIs:%nYou can't clear ROIs if you don't save ROIs on OMERO"));
+			check = false;
+		}
+		return check;
+	}
+
+
+	private boolean checkUploadLocalInput() {
+		boolean check = true;
+		if (local.isSelected() && onlineOutput.isSelected() && !checkImage.isSelected()) {
+			errorWindow(String.format("Output:%nYou can't upload results file or ROIs on OMERO if your image isn't in OMERO"));
+			check = false;
+		}
+		return check;
+	}
+
+
+	private boolean checkSelectedOutput() {
+		boolean check = true;
+		if (!checkResults.isSelected() && !checkROIs.isSelected() && !checkImage.isSelected()) {
+			errorWindow(String.format("Macro:%nYou have to choose at least one output"));
+			check = false;
+		}
+		return check;
+	}
+
+
+	private boolean getOutput() {
+		boolean omeroCheck = getOMEROOutput();
+		boolean localCheck = getLocalOutput();
+		boolean check = omeroCheck || localCheck;
+
+		if (!onlineOutput.isSelected() && !localOutput.isSelected()) {
+			errorWindow(String.format("Output:%nYou have to choose the localisation to save the results"));
+			check = false;
+		}
+
+		check &= checkSelectedOutput();
+		check &= checkUploadLocalInput();
+		check &= checkDeleteROIs();
+
+		return check;
+	}
 
 }

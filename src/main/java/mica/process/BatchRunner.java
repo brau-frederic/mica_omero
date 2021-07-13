@@ -49,7 +49,7 @@ public class BatchRunner extends Thread {
 	private String directoryIn;
 	private String directoryOut;
 	private String macro;
-	private String extension;
+	private String suffix;
 
 	private RoiManager rm;
 
@@ -211,7 +211,7 @@ public class BatchRunner extends Thread {
 		//""" Run a macro on images and save the result """
 		String property = "ROI";
 		ij.WindowManager.closeAllWindows();
-		String appel = "0";
+		String call = "0";
 		int index = 0;
 		for (ImageWrapper image : images) {
 			setProgress("Image " + (index + 1) + "/" + images.size());
@@ -235,8 +235,8 @@ public class BatchRunner extends Thread {
 			imp.show();
 
 			// Analyse the images.
-			IJ.runMacroFile(macro, appel);
-			appel = "1";
+			IJ.runMacroFile(macro, call);
+			call = "1";
 
 			imp.changes = false; // Prevent "Save Changes?" dialog
 			imp = WindowManager.getCurrentImage();
@@ -261,7 +261,7 @@ public class BatchRunner extends Thread {
 		//""" Run a macro on images from local computer and save the result """
 		String property = "ROI";
 		WindowManager.closeAllWindows();
-		String appel = "0";
+		String call = "0";
 		int index = 0;
 		for (String image : images) {
 
@@ -280,8 +280,8 @@ public class BatchRunner extends Thread {
 			String title = removeExtension(imp.getTitle());
 
 			// Analyse the images
-			IJ.runMacroFile(macro, appel);
-			appel = "1";
+			IJ.runMacroFile(macro, call);
+			call = "1";
 
 			// Save and Close the various components
 			Long outputImageId = null;
@@ -343,7 +343,7 @@ public class BatchRunner extends Thread {
 	private List<Long> saveImage(String title) {
 		List<Long> ids = new ArrayList<>();
 		if (saveImage) {
-			String path = directoryOut + File.separator + title + extension + ".tif";
+			String path = directoryOut + File.separator + title + suffix + ".tif";
 			IJ.saveAs("TIFF", path);
 			if (outputOnOMERO) {
 				try {
@@ -617,13 +617,13 @@ public class BatchRunner extends Thread {
 	}
 
 
-	public String getExtension() {
-		return extension;
+	public String getSuffix() {
+		return suffix;
 	}
 
 
-	public void setExtension(String extension) {
-		this.extension = extension;
+	public void setSuffix(String suffix) {
+		this.suffix = suffix;
 	}
 
 

@@ -18,14 +18,14 @@ public class ProgressDialog extends JFrame implements ProcessingProgress {
 		this.setLocationRelativeTo(null);
 		this.setSize(300, 200);
 
-		Font warnfont = new Font("Arial", Font.PLAIN, 12);
-		Font progfont = new Font("Arial", Font.BOLD, 12);
+		Font warnFont = new Font("Arial", Font.PLAIN, 12);
+		Font progFont = new Font("Arial", Font.BOLD, 12);
 		JLabel warnLabel = new JLabel("", SwingConstants.CENTER);
 		warnLabel
 				.setText("<html> <body style='text-align:center;'> Warning: <br>Image processing can take time <br>depending on your network rate </body> </html>");
-		warnLabel.setFont(warnfont);
-		progressLabel.setFont(progfont);
-		stateLabel.setFont(progfont);
+		warnLabel.setFont(warnFont);
+		progressLabel.setFont(progFont);
+		stateLabel.setFont(progFont);
 
 		Container cp2 = this.getContentPane();
 		cp2.setLayout(new BoxLayout(cp2, BoxLayout.PAGE_AXIS));
