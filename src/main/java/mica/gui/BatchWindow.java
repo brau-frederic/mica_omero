@@ -139,7 +139,7 @@ public class BatchWindow extends JFrame implements BatchListener {
 		groupUsers.add(userList);
 		userList.addItemListener(this::updateUser);
 
-		// choix du groupe
+		// Group selection
 		JPanel panelGroup = new JPanel();
 		panelGroup.add(group);
 		panelGroup.add(groupUsers);
@@ -147,14 +147,14 @@ public class BatchWindow extends JFrame implements BatchListener {
 		cp.add(panelGroup);
 
 		JPanel input1 = new JPanel();
-		JLabel labelEntertype = new JLabel("Where to get files to analyze :");
-		input1.add(labelEntertype);
+		JLabel labelEnterType = new JLabel("Where to get files to analyze :");
+		input1.add(labelEnterType);
 		input1.add(omero);
-		ButtonGroup indata = new ButtonGroup();
-		indata.add(omero);
+		ButtonGroup inputData = new ButtonGroup();
+		inputData.add(omero);
 		omero.addItemListener(this::updateInput);
 		input1.add(local);
-		indata.add(local);
+		inputData.add(local);
 		local.addItemListener(this::updateInput);
 		JLabel labelProjectIn = new JLabel(projectName);
 		input2a.add(labelProjectIn);
@@ -173,9 +173,9 @@ public class BatchWindow extends JFrame implements BatchListener {
 
 		input2b.add(inputFolder);
 		inputFolder.setMaximumSize(new Dimension(300, 30));
-		JButton inputfolderBtn = new JButton("Images directory");
-		input2b.add(inputfolderBtn);
-		inputfolderBtn.addActionListener(e -> chooseDirectory(inputFolder));
+		JButton inputFolderBtn = new JButton("Images directory");
+		input2b.add(inputFolderBtn);
+		inputFolderBtn.addActionListener(e -> chooseDirectory(inputFolder));
 		panelInput.add(input1);
 		omero.setSelected(true);
 		panelInput.setLayout(new BoxLayout(panelInput, BoxLayout.PAGE_AXIS));
@@ -216,8 +216,8 @@ public class BatchWindow extends JFrame implements BatchListener {
 		extension.setText("_macro");
 
 		JPanel output2 = new JPanel();
-		JLabel labelRecordoption = new JLabel("Where to save results :");
-		output2.add(labelRecordoption);
+		JLabel labelRecordOption = new JLabel("Where to save results :");
+		output2.add(labelRecordOption);
 		output2.add(onlineOutput);
 		onlineOutput.addItemListener(this::updateOutput);
 		output2.add(localOutput);
@@ -453,16 +453,16 @@ public class BatchWindow extends JFrame implements BatchListener {
 
 
 	private void chooseDirectory(JTextField textField) {
-		JFileChooser outputchoice = new JFileChooser();
-		outputchoice.setDialogTitle("Choose the directory");
-		outputchoice.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
-		int returnVal = outputchoice.showOpenDialog(null);
-		outputchoice.setAcceptAllFileFilterUsed(false); // ????
+		JFileChooser outputChoice = new JFileChooser();
+		outputChoice.setDialogTitle("Choose the directory");
+		outputChoice.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+		int returnVal = outputChoice.showOpenDialog(null);
+		outputChoice.setAcceptAllFileFilterUsed(false); // ????
 		if (returnVal == JFileChooser.APPROVE_OPTION) {
-			File absdir = new File(outputchoice.getSelectedFile()
+			File absDir = new File(outputChoice.getSelectedFile()
 											   .getAbsolutePath());
-			if (absdir.exists() && absdir.isDirectory()) {
-				textField.setText(absdir.toString());
+			if (absDir.exists() && absDir.isDirectory()) {
+				textField.setText(absDir.toString());
 			} else {
 				////find a way to prevent JFileChooser closure?
 				errorWindow("Output: \nThe directory doesn't exist");
@@ -476,15 +476,15 @@ public class BatchWindow extends JFrame implements BatchListener {
 
 
 	private void chooseMacro() {
-		JFileChooser macrochoice = new JFileChooser();
-		macrochoice.setDialogTitle("Choose the macro file");
-		macrochoice.setFileSelectionMode(JFileChooser.FILES_ONLY);
-		int returnVal = macrochoice.showOpenDialog(null);
+		JFileChooser macroChoice = new JFileChooser();
+		macroChoice.setDialogTitle("Choose the macro file");
+		macroChoice.setFileSelectionMode(JFileChooser.FILES_ONLY);
+		int returnVal = macroChoice.showOpenDialog(null);
 		if (returnVal == JFileChooser.APPROVE_OPTION) {
-			File absfile = new File(macrochoice.getSelectedFile()
+			File absFile = new File(macroChoice.getSelectedFile()
 											   .getAbsolutePath());
-			if (absfile.exists() && !absfile.isDirectory()) {
-				macro.setText(absfile.toString());
+			if (absFile.exists() && !absFile.isDirectory()) {
+				macro.setText(absFile.toString());
 			} else {
 				//find a way to prevent JFileChooser closure?
 				warningWindow("Macro: \nThe file doesn't exist");
@@ -510,12 +510,12 @@ public class BatchWindow extends JFrame implements BatchListener {
 		runner.addListener(this);
 
 		// initiation of success variables
-		boolean inputdata = false;
-		boolean macrodata = false;
-		boolean omerorecord = false;
-		boolean localrecord = false;
-		boolean recordtype = false;
-		boolean sens;
+		boolean intputData = false;
+		boolean macroData = false;
+		boolean omeroRecord = false;
+		boolean localRecord = false;
+		boolean recordType = false;
+		boolean sens = true;
 		int index;
 
 		// input data
@@ -526,16 +526,16 @@ public class BatchWindow extends JFrame implements BatchListener {
 			long inputDatasetId = dataset.getId();
 			runner.setInputDatasetId(inputDatasetId);
 			runner.setOutputDatasetId(inputDatasetId);
-			inputdata = true;
+			intputData = true;
 		} else { // local.isSelected()
 			runner.setInputOnOMERO(false);
 			if (inputFolder.getText().equals("")) {
 				errorWindow("Input: \nNo directory selected");
 			} else {
 				directoryIn = inputFolder.getText();
-				File directoryInf = new File(directoryIn);
-				if (directoryInf.exists() && directoryInf.isDirectory()) {
-					inputdata = true;
+				File directoryInF = new File(directoryIn);
+				if (directoryInF.exists() && directoryInF.isDirectory()) {
+					intputData = true;
 				} else {
 					errorWindow("Input: \nThe directory " + directoryIn + " doesn't exist");
 				}
@@ -547,9 +547,9 @@ public class BatchWindow extends JFrame implements BatchListener {
 			errorWindow("Macro: \nNo macro selected");
 		} else {
 			macroChosen = macro.getText();
-			File macrof = new File(macroChosen);
-			if (macrof.exists() && !macrof.isDirectory()) {
-				macrodata = true;
+			File macroFile = new File(macroChosen);
+			if (macroFile.exists() && !macroFile.isDirectory()) {
+				macroData = true;
 			} else {
 				errorWindow("Macro: \nThe file " + macroChosen + " doesn't exist");
 			}
@@ -563,9 +563,9 @@ public class BatchWindow extends JFrame implements BatchListener {
 			index = datasetListOut.getSelectedIndex();
 			if (index == -1 || index > datasets.size()) {
 				errorWindow("Output: \nNo dataset selected");
-				omerorecord = false;
+				omeroRecord = false;
 			} else {
-				omerorecord = true;
+				omeroRecord = true;
 			}
 			DatasetWrapper dataset = datasets.get(index);
 			outputDatasetId = dataset.getId();
@@ -573,43 +573,36 @@ public class BatchWindow extends JFrame implements BatchListener {
 		if (localOutput.isSelected()) { // local record
 			if (directory.getText().equals("")) {
 				errorWindow("Output: \nNo directory selected");
-				localrecord = false;
+				localRecord = false;
 			} else {
 				directoryOut = directory.getText();
-				File directoryOutf = new File(directoryOut);
-				if (directoryOutf.exists() &&
-					directoryOutf.isDirectory()) {
-					localrecord = true;
+				File directoryOutFile = new File(directoryOut);
+				if (directoryOutFile.exists() &&
+					directoryOutFile.isDirectory()) {
+					localRecord = true;
 				} else {
 					errorWindow("Output: \nThe directory " + directoryOut +
 								" doesn't exist");
-					localrecord = false;
+					localRecord = false;
 				}
 			}
 		}
 
-		if (!onlineOutput.isSelected() && !localOutput.isSelected()) { // omerorecord == null && localrecord = null
+		if (!onlineOutput.isSelected() && !localOutput.isSelected()) {
 			errorWindow("Output: \nYou have to choose the localisation to save the results");
-		} else if ((omerorecord) ||
-				   (localrecord)) { // true means selected and ok, null means not selected, false means selected but pb
-			recordtype = true;
+		} else if (omeroRecord || localRecord) {
+			recordType = true;
 		}
 
-		if (!checkResults.isSelected() &&
-			!checkROIs.isSelected() &&
-			!checkImage.isSelected()) { // No query
+		if (!checkResults.isSelected() && !checkROIs.isSelected() && !checkImage.isSelected()) {
 			errorWindow("Macro: \nYou have to choose at least one output");
-		} else {
-			sens = true;
+			sens = false;
 		}
 
 
-		if (local.isSelected() && onlineOutput.isSelected() &&
-			!checkImage.isSelected()) { // Impossible to upload
+		if (local.isSelected() && onlineOutput.isSelected() && !checkImage.isSelected()) {
 			errorWindow("Output: \nYou can't upload results file or ROIs on OMERO if your image isn't in OMERO");
 			sens = false;
-		} else {
-			sens = true;
 		}
 
 		if (checkDelROIs.isSelected() && (!onlineOutput.isSelected()) || !checkROIs.isSelected()) {
@@ -617,8 +610,7 @@ public class BatchWindow extends JFrame implements BatchListener {
 			sens = false;
 		}
 
-		//
-		if (inputdata && macrodata && recordtype && sens) {
+		if (intputData && macroData && recordType && sens) {
 			try {
 				runner.setLoadROIS(checkLoadROIs.isSelected());
 				runner.setClearROIS(checkDelROIs.isSelected());

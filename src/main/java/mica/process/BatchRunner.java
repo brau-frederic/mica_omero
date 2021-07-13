@@ -497,7 +497,8 @@ public class BatchRunner extends Thread {
 				((TextWindow) frame).close(false);
 			}
 		}
-		WindowManager.closeAllWindows(); //  To do local and Omero saves on the same time
+		rm.reset();
+		WindowManager.closeAllWindows();
 	}
 
 
