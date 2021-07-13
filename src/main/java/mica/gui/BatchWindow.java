@@ -603,12 +603,18 @@ public class BatchWindow extends JFrame implements BatchListener {
 			sens = true;
 		}
 
+
 		if (local.isSelected() && onlineOutput.isSelected() &&
 			!checkImage.isSelected()) { // Impossible to upload
 			errorWindow("Output: \nYou can't upload results file or ROIs on OMERO if your image isn't in OMERO");
 			sens = false;
 		} else {
 			sens = true;
+		}
+
+		if (checkDelROIs.isSelected() && (!onlineOutput.isSelected()) || !checkROIs.isSelected()) {
+			errorWindow("ROIs: \nYou can't clear ROIs if you don't save ROIs on OMERO");
+			sens = false;
 		}
 
 		//
