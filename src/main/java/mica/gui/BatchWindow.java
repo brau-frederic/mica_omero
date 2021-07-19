@@ -653,7 +653,7 @@ public class BatchWindow extends JFrame implements BatchListener {
 
 	private boolean checkDeleteROIs() {
 		boolean check = true;
-		if (checkDelROIs.isSelected() && (!onlineOutput.isSelected()) || !checkROIs.isSelected()) {
+		if (checkDelROIs.isSelected() && (!onlineOutput.isSelected() || !checkROIs.isSelected())) {
 			errorWindow(String.format("ROIs:%nYou can't clear ROIs if you don't save ROIs on OMERO"));
 			check = false;
 		}

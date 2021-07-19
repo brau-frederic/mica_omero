@@ -16,8 +16,12 @@ import ij.gui.Roi;
 import ij.measure.ResultsTable;
 import ij.plugin.frame.RoiManager;
 import ij.text.TextWindow;
+import loci.formats.FormatException;
 import mica.gui.ProgressDialog;
 import org.apache.commons.io.FilenameUtils;
+import loci.plugins.BF;
+import loci.plugins.in.ImporterOptions;
+import loci.plugins.in.ImportProcess;
 
 import java.awt.Frame;
 import java.io.File;
@@ -257,48 +261,57 @@ public class BatchRunner extends Thread {
 	}
 
 
-	void runMacroOnLocalImages(List<String> images) {
+	void runMacroOnLocalImages(List<String> images) throws IOException, FormatException {
 		//""" Run a macro on images from local computer and save the result """
 		String property = "ROI";
 		WindowManager.closeAllWindows();
-		String call = "0";
+		String appel = "0";
 		int index = 0;
 		for (String image : images) {
-
 			// Open the image
-			setProgress("image " + (index + 1) + "/" + images.size());
-			ImagePlus imp = IJ.openImage(image);
-			long ijId = imp.getID();
-			/*IJ.run("Bio-Formats Importer",
-				   "open=" + Image +
-				   " autoscale color_mode=Default view=Hyperstack stack_order=XYCZT");*/
+			ImporterOptions options = new ImporterOptions();
+			options.setId(image);
 
-			// Initialize ROI Manager
-			initRoiManager();
+			ImportProcess process = new ImportProcess(options);
+			process.execute();
+			int n = process.getSeriesCount();
+			for(int i=0; i<n; i++) {
+				String msg = String.format("File %d/%d, image %d/%d", index+1, images.size(), i, n);
+				setProgress(msg);
+				options.setSeriesOn(i, true);
+				ImagePlus[] imps = BF.openImagePlus(options);
+				ImagePlus imp = imps[0];
+				long ijId = imp.getID();
+				imp.show();
 
-			// Remove extension from title
-			String title = removeExtension(imp.getTitle());
+				// Initialize ROI Manager
+				initRoiManager();
 
-			// Analyse the images
-			IJ.runMacroFile(macro, call);
-			call = "1";
+				// Remove extension from title
+				String title = removeExtension(imp.getTitle());
 
-			// Save and Close the various components
-			Long outputImageId = null;
-			imp.changes = false; // Prevent "Save Changes?" dialog
-			imp = WindowManager.getCurrentImage();
-			if (saveImage && imp != null && imp.getID() != ijId) {
-				List<Long> ids = saveImage(title);
-				if (!ids.isEmpty()) {
-					outputImageId = ids.get(0);
+				// Analyse the images
+				IJ.runMacroFile(macro, appel);
+				appel = "1";
+
+				// Save and Close the various components
+				Long outputImageId = null;
+				imp.changes = false; // Prevent "Save Changes?" dialog
+				imp = WindowManager.getCurrentImage();
+				if (saveImage && imp != null && imp.getID() != ijId) {
+					List<Long> ids = saveImage(title);
+					if (!ids.isEmpty()) {
+						outputImageId = ids.get(0);
+					}
+				} else if (saveImage) {
+					IJ.error("Impossible to save: output image must be different from input image.");
 				}
-			} else if (saveImage) {
-				IJ.error("Impossible to save: output image must be different from input image.");
-			}
 
-			saveROIs(outputImageId, imp, title, property);
-			saveResults(imp, outputImageId, title, property);
-			closeWindows();
+				saveROIs(outputImageId, imp, title, property);
+				saveResults(imp, outputImageId, title, property);
+				closeWindows();
+				options.setSeriesOn(i, false);
+			}
 			index++;
 		}
 	}
