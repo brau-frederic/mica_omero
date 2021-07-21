@@ -6,7 +6,7 @@
 
     <groupId>mica</groupId>
     <artifactId>batch-omero-plugin</artifactId>
-    <version>0.0.1</version>
+    <version>1.0.0</version>
 
     <name>batch-omero-plugin</name>
     <description>ImageJ plugin to batch process images from OMERO.</description>
