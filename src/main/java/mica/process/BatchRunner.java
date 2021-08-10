@@ -223,6 +223,7 @@ public class BatchRunner extends Thread {
 
 			// Open image from OMERO
 			ImagePlus imp = openImage(image);
+			ImagePlus imageInput = imp;
 			// If image could not be loaded, continue to next image.
 			if (imp == null) continue;
 			long ijId = imp.getID();
@@ -244,7 +245,11 @@ public class BatchRunner extends Thread {
 
 			imp.changes = false; // Prevent "Save Changes?" dialog
 			imp = WindowManager.getCurrentImage();
-			if (imp != null && imp.getID() != ijId) {
+			if (imp == null){
+				if (saveImage) IJ.error("Invalid choice : There is no new image.");
+				else imp = imageInput;
+			}
+			if (imp.getID() != ijId) {
 				List<Long> ids = saveImage(title);
 				if (!ids.isEmpty()) {
 					outputImageId = ids.get(0);
@@ -252,7 +257,6 @@ public class BatchRunner extends Thread {
 			} else if (saveImage) {
 				IJ.error("Impossible to save: output image must be different from input image.");
 			}
-
 			saveROIs(outputImageId, imp, title, property);
 			saveResults(imp, outputImageId, title, property);
 			closeWindows();
