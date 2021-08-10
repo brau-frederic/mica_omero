@@ -52,7 +52,7 @@ public class BatchWindow extends JFrame implements BatchListener {
 	// choice of the record
 	private final JTextField inputFolder = new JTextField(20);
 	private final JTextField macro = new JTextField(20);
-	private final JCheckBox checkImage = new JCheckBox(" The macro returns an image ");
+	private final JCheckBox checkImage = new JCheckBox(" The macro returns a new image ");
 	private final JCheckBox checkResults = new JCheckBox(" The macro returns a results file (other than images)");
 	private final JCheckBox checkROIs = new JCheckBox(" The macro returns ROIs ");
 
