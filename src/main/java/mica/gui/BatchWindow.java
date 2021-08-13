@@ -52,9 +52,10 @@ public class BatchWindow extends JFrame implements BatchListener {
 	// choice of the record
 	private final JTextField inputFolder = new JTextField(20);
 	private final JTextField macro = new JTextField(20);
-	private final JCheckBox checkImage = new JCheckBox(" The macro returns a new image ");
-	private final JCheckBox checkResults = new JCheckBox(" The macro returns a results file (other than images)");
+	private final JCheckBox checkImage = new JCheckBox(" The macro returns new image(s) ");
+	private final JCheckBox checkResults = new JCheckBox(" The macro returns Results table(s)");
 	private final JCheckBox checkROIs = new JCheckBox(" The macro returns ROIs ");
+	private final JCheckBox checkLog = new JCheckBox(" The macro returns Log file ");
 
 	// choice of output
 	private final JPanel panelOutput = new JPanel();
@@ -200,12 +201,17 @@ public class BatchWindow extends JFrame implements BatchListener {
 		macro4.setLayout(new BoxLayout(macro4, BoxLayout.LINE_AXIS));
 		checkROIs.addItemListener(this::updateOutput);
 		macro4.add(checkROIs);
+		JPanel macro5 = new JPanel();
+		macro5.setLayout(new BoxLayout(macro5, BoxLayout.LINE_AXIS));
+		checkLog.addItemListener(this::updateOutput);
+		macro4.add(checkLog);
 		//choice of the macro
 		JPanel panelMacro = new JPanel();
 		panelMacro.add(macro1);
 		panelMacro.add(macro2);
 		panelMacro.add(macro3);
 		panelMacro.add(macro4);
+		panelMacro.add(macro5);
 		panelMacro.setLayout(new BoxLayout(panelMacro, BoxLayout.PAGE_AXIS));
 		panelMacro.setBorder(BorderFactory.createTitledBorder("Macro"));
 		cp.add(panelMacro);
@@ -451,6 +457,8 @@ public class BatchWindow extends JFrame implements BatchListener {
 			panelInput.remove(input2b);
 		} else { //local.isSelected()
 			panelInput.add(input2b);
+			checkDelROIs.setSelected(false);
+			checkLoadROIs.setSelected(false);
 			panelInput.remove(input2a);
 		}
 		BatchWindow.this.setVisible(true);
@@ -521,6 +529,7 @@ public class BatchWindow extends JFrame implements BatchListener {
 		} else { // local.isSelected()
 			runner.setInputOnOMERO(false);
 			checkInput = getLocalInput();
+			runner.setDirectoryIn(directoryIn);
 		}
 
 		// suffix
@@ -532,6 +541,7 @@ public class BatchWindow extends JFrame implements BatchListener {
 			runner.setSaveImage(checkImage.isSelected());
 			runner.setSaveResults(checkResults.isSelected());
 			runner.setSaveROIs(checkROIs.isSelected());
+			runner.setsaveLog(checkLog.isSelected());
 			if (onlineOutput.isSelected()) {
 				runner.setOutputOnOMERO(true);
 				if (checkImage.isSelected()) {
@@ -540,7 +550,6 @@ public class BatchWindow extends JFrame implements BatchListener {
 			}
 			if (localOutput.isSelected()) {
 				runner.setOutputOnLocal(true);
-				runner.setDirectoryIn(directoryIn);
 				runner.setDirectoryOut(directoryOut);
 			}
 

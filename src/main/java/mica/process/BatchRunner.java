@@ -31,6 +31,7 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Logger;
+import javax.imageio.ImageIO;
 
 
 public class BatchRunner extends Thread {
@@ -44,6 +45,7 @@ public class BatchRunner extends Thread {
 	private boolean saveImage;
 	private boolean saveROIs;
 	private boolean saveResults;
+	private boolean saveLog;
 	private boolean loadROIs;
 	private boolean clearROIs;
 	private boolean outputOnOMERO;
@@ -117,7 +119,6 @@ public class BatchRunner extends Thread {
 				setState("Temporary directory creation...");
 				directoryOut = Files.createTempDirectory("Fiji_analysis").toString();
 			}
-
 			if (inputOnOMERO) {
 				setState("Images recovery from OMERO...");
 				DatasetWrapper dataset = client.getDataset(inputDatasetId);
@@ -177,7 +178,11 @@ public class BatchRunner extends Thread {
 		List<String> pathsImagesIni = new ArrayList<>();
 		for (File value : Objects.requireNonNull(files)) {
 			String file = value.getAbsolutePath();
-			pathsImagesIni.add(file);
+		//	File f = new File(file);
+		//	try {
+		/*		if( ImageIO.read(f) != null) */pathsImagesIni.add(file);
+		//	} catch (IOException e) {
+		//	}
 		}
 		return pathsImagesIni;
 	}
@@ -245,20 +250,47 @@ public class BatchRunner extends Thread {
 
 			imp.changes = false; // Prevent "Save Changes?" dialog
 			imp = WindowManager.getCurrentImage();
-			if (imp == null){
-				if (saveImage) IJ.error("Invalid choice : There is no new image.");
-				else imp = imageInput;
+			if (saveImage) {
+				if (imp == null) IJ.error("Invalid choice : There is no new image.");
+				Integer count = 0;
+				while (imp != null) {
+					if (imp.getID() != ijId) {
+						List<Long> ids = saveImage(title);
+						if (!ids.isEmpty()) {
+							outputImageId = ids.get(0);
+						}
+					}
+					if (count == 0){
+						saveROIs(outputImageId, imp, title, property);
+						saveResults(imp, outputImageId, title, property);
+						if (saveLog) {
+							String path = directoryOut + File.separator + "Log.txt";
+							IJ.selectWindow("Log");
+							IJ.saveAs("txt", path);
+							uploadFile(outputImageId, path);
+						}
+
+						count++;
+					}
+					imp.close();
+					imp = WindowManager.getCurrentImage();
+				}
 			}
-			if (imp.getID() != ijId) {
+			else {
+				if (imp != null) imp = imageInput;
 				List<Long> ids = saveImage(title);
 				if (!ids.isEmpty()) {
 					outputImageId = ids.get(0);
 				}
-			} else if (saveImage) {
-				IJ.error("Impossible to save: output image must be different from input image.");
+				saveROIs(outputImageId, imp, title, property);
+				saveResults(imp, outputImageId, title, property);
+				if (saveLog) {
+					String path = directoryOut + File.separator + "Log.txt";
+					IJ.selectWindow("Log");
+					IJ.saveAs("txt", path);
+					uploadFile(outputImageId, path);
+				}
 			}
-			saveROIs(outputImageId, imp, title, property);
-			saveResults(imp, outputImageId, title, property);
 			closeWindows();
 			index++;
 		}
@@ -302,17 +334,44 @@ public class BatchRunner extends Thread {
 				Long outputImageId = null;
 				imp.changes = false; // Prevent "Save Changes?" dialog
 				imp = WindowManager.getCurrentImage();
-				if (saveImage && imp != null && imp.getID() != ijId) {
+				if (saveImage) {
+					if (imp == null) IJ.error("Invalid choice : There is no new image.");
+					Integer count = 0;
+					while (imp != null) {
+						if (imp.getID() != ijId) {
+							List<Long> ids = saveImage(title);
+							if (!ids.isEmpty()) {
+								outputImageId = ids.get(0);
+							}
+						}
+						if (count == 0){
+							saveROIs(outputImageId, imp, title, property);
+							saveResults(imp, outputImageId, title, property);
+							if (saveLog) {
+								String path = directoryOut + File.separator + "Log.txt";
+								IJ.selectWindow("Log");
+								IJ.saveAs("txt", path);
+							}
+
+							count++;
+						}
+						imp.close();
+						imp = WindowManager.getCurrentImage();
+					}
+				}
+				else {
 					List<Long> ids = saveImage(title);
 					if (!ids.isEmpty()) {
 						outputImageId = ids.get(0);
 					}
-				} else if (saveImage) {
-					IJ.error("Impossible to save: output image must be different from input image.");
+					saveROIs(outputImageId, imp, title, property);
+					saveResults(imp, outputImageId, title, property);
+					if (saveLog) {
+						String path = directoryOut + File.separator + "Log.txt";
+						IJ.selectWindow("Log");
+						IJ.saveAs("txt", path);
+					}
 				}
-
-				saveROIs(outputImageId, imp, title, property);
-				saveResults(imp, outputImageId, title, property);
 				closeWindows();
 				options.setSeriesOn(i, false);
 			}
@@ -663,6 +722,9 @@ public class BatchRunner extends Thread {
 		this.outputOnLocal = outputOnLocal;
 	}
 
+	public void setsaveLog(boolean saveLog) {
+		this.saveLog = saveLog;
+	}
 
 	public void addListener(BatchListener listener) {
 		this.listener = listener;
