@@ -264,7 +264,7 @@ public class BatchRunner extends Thread {
 						saveROIs(outputImageId, imp, title, property);
 						saveResults(imp, outputImageId, title, property);
 						if (saveLog) {
-							String path = directoryOut + File.separator + "Log.txt";
+							String path = directoryOut + File.separator + title + "Log.txt";
 							IJ.selectWindow("Log");
 							IJ.saveAs("txt", path);
 							uploadFile(outputImageId, path);
@@ -285,7 +285,7 @@ public class BatchRunner extends Thread {
 				saveROIs(outputImageId, imp, title, property);
 				saveResults(imp, outputImageId, title, property);
 				if (saveLog) {
-					String path = directoryOut + File.separator + "Log.txt";
+					String path = directoryOut + File.separator + title + "Log.txt";
 					IJ.selectWindow("Log");
 					IJ.saveAs("txt", path);
 					uploadFile(outputImageId, path);
@@ -348,7 +348,7 @@ public class BatchRunner extends Thread {
 							saveROIs(outputImageId, imp, title, property);
 							saveResults(imp, outputImageId, title, property);
 							if (saveLog) {
-								String path = directoryOut + File.separator + "Log.txt";
+								String path = directoryOut + File.separator + title + "Log.txt";
 								IJ.selectWindow("Log");
 								IJ.saveAs("txt", path);
 							}
@@ -367,7 +367,7 @@ public class BatchRunner extends Thread {
 					saveROIs(outputImageId, imp, title, property);
 					saveResults(imp, outputImageId, title, property);
 					if (saveLog) {
-						String path = directoryOut + File.separator + "Log.txt";
+						String path = directoryOut + File.separator + title + "Log.txt";
 						IJ.selectWindow("Log");
 						IJ.saveAs("txt", path);
 					}
