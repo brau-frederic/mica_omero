@@ -17,11 +17,11 @@ import ij.measure.ResultsTable;
 import ij.plugin.frame.RoiManager;
 import ij.text.TextWindow;
 import loci.formats.FormatException;
+import loci.plugins.BF;
+import loci.plugins.in.ImportProcess;
+import loci.plugins.in.ImporterOptions;
 import mica.gui.ProgressDialog;
 import org.apache.commons.io.FilenameUtils;
-import loci.plugins.BF;
-import loci.plugins.in.ImporterOptions;
-import loci.plugins.in.ImportProcess;
 
 import java.awt.Frame;
 import java.io.File;
@@ -31,7 +31,7 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Logger;
-import javax.imageio.ImageIO;
+import java.util.stream.Collectors;
 
 
 public class BatchRunner extends Thread {
@@ -78,7 +78,7 @@ public class BatchRunner extends Thread {
 
 	private void initRoiManager() {
 		rm = RoiManager.getInstance2();
-		if(rm == null) rm = RoiManager.getRoiManager();
+		if (rm == null) rm = RoiManager.getRoiManager();
 	}
 
 
@@ -119,6 +119,7 @@ public class BatchRunner extends Thread {
 				setState("Temporary directory creation...");
 				directoryOut = Files.createTempDirectory("Fiji_analysis").toString();
 			}
+
 			if (inputOnOMERO) {
 				setState("Images recovery from OMERO...");
 				DatasetWrapper dataset = client.getDataset(inputDatasetId);
@@ -178,11 +179,7 @@ public class BatchRunner extends Thread {
 		List<String> pathsImagesIni = new ArrayList<>();
 		for (File value : Objects.requireNonNull(files)) {
 			String file = value.getAbsolutePath();
-		//	File f = new File(file);
-		//	try {
-		/*		if( ImageIO.read(f) != null) */pathsImagesIni.add(file);
-		//	} catch (IOException e) {
-		//	}
+			pathsImagesIni.add(file);
 		}
 		return pathsImagesIni;
 	}
@@ -224,20 +221,18 @@ public class BatchRunner extends Thread {
 		int index = 0;
 		for (ImageWrapper image : images) {
 			setProgress("Image " + (index + 1) + "/" + images.size());
-			long outputImageId = image.getId();
+			long inputImageId = image.getId();
 
 			// Open image from OMERO
 			ImagePlus imp = openImage(image);
-			ImagePlus imageInput = imp;
 			// If image could not be loaded, continue to next image.
 			if (imp == null) continue;
-			long ijId = imp.getID();
 
 			// Initialize ROI Manager
 			initRoiManager();
 
 			// Load ROIs
-			if(loadROIs) loadROIs(image, imp);
+			if (loadROIs) loadROIs(image, imp);
 
 			// Define paths
 			String title = removeExtension(imp.getTitle());
@@ -249,48 +244,7 @@ public class BatchRunner extends Thread {
 			call = "1";
 
 			imp.changes = false; // Prevent "Save Changes?" dialog
-			imp = WindowManager.getCurrentImage();
-			if (saveImage) {
-				if (imp == null) IJ.error("Invalid choice : There is no new image.");
-				Integer count = 0;
-				while (imp != null) {
-					if (imp.getID() != ijId) {
-						List<Long> ids = saveImage(title);
-						if (!ids.isEmpty()) {
-							outputImageId = ids.get(0);
-						}
-					}
-					if (count == 0){
-						saveROIs(outputImageId, imp, title, property);
-						saveResults(imp, outputImageId, title, property);
-						if (saveLog) {
-							String path = directoryOut + File.separator + title + "Log.txt";
-							IJ.selectWindow("Log");
-							IJ.saveAs("txt", path);
-							uploadFile(outputImageId, path);
-						}
-
-						count++;
-					}
-					imp.close();
-					imp = WindowManager.getCurrentImage();
-				}
-			}
-			else {
-				if (imp != null) imp = imageInput;
-				List<Long> ids = saveImage(title);
-				if (!ids.isEmpty()) {
-					outputImageId = ids.get(0);
-				}
-				saveROIs(outputImageId, imp, title, property);
-				saveResults(imp, outputImageId, title, property);
-				if (saveLog) {
-					String path = directoryOut + File.separator + title + "Log.txt";
-					IJ.selectWindow("Log");
-					IJ.saveAs("txt", path);
-					uploadFile(outputImageId, path);
-				}
-			}
+			save(imp, inputImageId, title, property);
 			closeWindows();
 			index++;
 		}
@@ -311,13 +265,12 @@ public class BatchRunner extends Thread {
 			ImportProcess process = new ImportProcess(options);
 			process.execute();
 			int n = process.getSeriesCount();
-			for(int i=0; i<n; i++) {
-				String msg = String.format("File %d/%d, image %d/%d", index+1, images.size(), i, n);
+			for (int i = 0; i < n; i++) {
+				String msg = String.format("File %d/%d, image %d/%d", index + 1, images.size(), i, n);
 				setProgress(msg);
 				options.setSeriesOn(i, true);
 				ImagePlus[] imps = BF.openImagePlus(options);
 				ImagePlus imp = imps[0];
-				long ijId = imp.getID();
 				imp.show();
 
 				// Initialize ROI Manager
@@ -331,47 +284,8 @@ public class BatchRunner extends Thread {
 				appel = "1";
 
 				// Save and Close the various components
-				Long outputImageId = null;
 				imp.changes = false; // Prevent "Save Changes?" dialog
-				imp = WindowManager.getCurrentImage();
-				if (saveImage) {
-					if (imp == null) IJ.error("Invalid choice : There is no new image.");
-					Integer count = 0;
-					while (imp != null) {
-						if (imp.getID() != ijId) {
-							List<Long> ids = saveImage(title);
-							if (!ids.isEmpty()) {
-								outputImageId = ids.get(0);
-							}
-						}
-						if (count == 0){
-							saveROIs(outputImageId, imp, title, property);
-							saveResults(imp, outputImageId, title, property);
-							if (saveLog) {
-								String path = directoryOut + File.separator + title + "Log.txt";
-								IJ.selectWindow("Log");
-								IJ.saveAs("txt", path);
-							}
-
-							count++;
-						}
-						imp.close();
-						imp = WindowManager.getCurrentImage();
-					}
-				}
-				else {
-					List<Long> ids = saveImage(title);
-					if (!ids.isEmpty()) {
-						outputImageId = ids.get(0);
-					}
-					saveROIs(outputImageId, imp, title, property);
-					saveResults(imp, outputImageId, title, property);
-					if (saveLog) {
-						String path = directoryOut + File.separator + title + "Log.txt";
-						IJ.selectWindow("Log");
-						IJ.saveAs("txt", path);
-					}
-				}
+				save(imp, null, title, property);
 				closeWindows();
 				options.setSeriesOn(i, false);
 			}
@@ -416,6 +330,45 @@ public class BatchRunner extends Thread {
 	}
 
 
+	private void save(ImagePlus imageInput, Long omeroInputId, String title, String property) {
+		int ijInputId = imageInput.getID();
+		Long omeroOutputId = omeroInputId;
+
+		ImagePlus outputImage = WindowManager.getCurrentImage();
+		if (outputImage == null) {
+			outputImage = imageInput;
+		}
+		int ijOutputId = outputImage.getID();
+
+		int[] imageIds = WindowManager.getIDList();
+		List<Integer> idList = Arrays.stream(imageIds).boxed().collect(Collectors.toList());
+		idList.removeIf(i -> i.equals(ijOutputId));
+		idList.add(0, ijOutputId);
+		idList.removeIf(i -> i.equals(ijInputId));
+
+		if (saveImage) {
+			List<Long> outputIds = new ArrayList<>();
+			if (idList.isEmpty()) IJ.error("Invalid choice: there is no new image.");
+			for (Integer id : idList) {
+				ImagePlus imp = WindowManager.getImage(id);
+				WindowManager.setTempCurrentImage(imp);
+				outputIds.addAll(saveImage(title));
+			}
+			if (!outputIds.isEmpty()) {
+				omeroOutputId = outputIds.get(0);
+			}
+		}
+
+		saveROIs(outputImage, omeroOutputId, title, property);
+		saveResults(outputImage, omeroOutputId, title, property);
+		saveLog(omeroOutputId, title);
+
+		for (int id : imageIds) {
+			WindowManager.getImage(id).close();
+		}
+	}
+
+
 	private List<Long> saveImage(String title) {
 		List<Long> ids = new ArrayList<>();
 		if (saveImage) {
@@ -435,7 +388,7 @@ public class BatchRunner extends Thread {
 	}
 
 
-	private void saveROIs(Long imageId, ImagePlus imp, String title, String property) {
+	private void saveROIs(ImagePlus imp, Long imageId, String title, String property) {
 		// save of ROIs
 		if (saveROIs && outputOnLocal) {  //  local save
 			setState("Saving ROIs...");
@@ -468,7 +421,7 @@ public class BatchRunner extends Thread {
 			List<Roi> ijRois = getIJRois(imp);
 			setState("Saving results files...");
 			ResultsTable rt = ResultsTable.getResultsTable();
-			if(rt != null) {
+			if (rt != null) {
 				resultsName = rt.getTitle();
 				String path = directoryOut + File.separator + resultsName + "_" + title + "_" + todayDate() + ".csv";
 				rt.save(path);
@@ -482,7 +435,7 @@ public class BatchRunner extends Thread {
 				rt = ResultsTable.getResultsTable(candidate);
 
 				// Skip if rt is null or if results already processed
-				if(rt == null || rt.getTitle().equals(resultsName)) continue;
+				if (rt == null || rt.getTitle().equals(resultsName)) continue;
 
 				String path = directoryOut + File.separator + candidate + "_" + title + "_" + todayDate() + ".csv";
 				rt.save(path);
@@ -495,8 +448,18 @@ public class BatchRunner extends Thread {
 	}
 
 
+	private void saveLog(Long imageId, String title) {
+		if (saveLog) {
+			String path = directoryOut + File.separator + title + "_log.txt";
+			IJ.selectWindow("Log");
+			IJ.saveAs("txt", path);
+			if (outputOnOMERO) uploadFile(imageId, path);
+		}
+	}
+
+
 	private void uploadFile(Long imageId, String path) {
-		if(imageId != null) {
+		if (imageId != null) {
 			try {
 				setState("Uploading results files...");
 				ImageWrapper image = client.getImage(imageId);
@@ -722,9 +685,11 @@ public class BatchRunner extends Thread {
 		this.outputOnLocal = outputOnLocal;
 	}
 
-	public void setsaveLog(boolean saveLog) {
+
+	public void setSaveLog(boolean saveLog) {
 		this.saveLog = saveLog;
 	}
+
 
 	public void addListener(BatchListener listener) {
 		this.listener = listener;

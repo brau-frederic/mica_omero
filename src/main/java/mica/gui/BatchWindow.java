@@ -541,7 +541,7 @@ public class BatchWindow extends JFrame implements BatchListener {
 			runner.setSaveImage(checkImage.isSelected());
 			runner.setSaveResults(checkResults.isSelected());
 			runner.setSaveROIs(checkROIs.isSelected());
-			runner.setsaveLog(checkLog.isSelected());
+			runner.setSaveLog(checkLog.isSelected());
 			if (onlineOutput.isSelected()) {
 				runner.setOutputOnOMERO(true);
 				if (checkImage.isSelected()) {
