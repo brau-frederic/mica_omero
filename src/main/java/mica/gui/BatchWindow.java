@@ -389,6 +389,18 @@ public class BatchWindow extends JFrame implements BatchListener {
 				break;
 			}
 		}
+
+		int inputProject = projectListIn.getSelectedIndex();
+		projectListIn.setSelectedIndex(-1);
+		projectListIn.setSelectedIndex(inputProject);
+
+		long inputDatasetID = datasets.get(datasetListIn.getSelectedIndex()).getId();
+		for (int i = 0; i < datasets.size(); i++) {
+			if (datasets.get(i).getId() == inputDatasetID) {
+				datasetListIn.setSelectedIndex(i);
+				break;
+			}
+		}
 	}
 
 
