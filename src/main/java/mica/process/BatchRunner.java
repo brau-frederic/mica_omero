@@ -7,6 +7,7 @@ import fr.igred.omero.exception.OMEROServerError;
 import fr.igred.omero.exception.ServiceException;
 import fr.igred.omero.repository.DatasetWrapper;
 import fr.igred.omero.repository.ImageWrapper;
+import fr.igred.omero.repository.ProjectWrapper;
 import fr.igred.omero.roi.ROIWrapper;
 import ij.IJ;
 import ij.ImagePlus;
@@ -52,6 +53,7 @@ public class BatchRunner extends Thread {
 	private boolean outputOnLocal;
 	private long inputDatasetId;
 	private long outputDatasetId;
+	private long outputProjectId;
 	private String directoryIn;
 	private String directoryOut;
 	private String macro;
@@ -352,6 +354,9 @@ public class BatchRunner extends Thread {
 		int ijOutputId = outputImage.getID();
 
 		int[] imageIds = WindowManager.getIDList();
+		if(imageIds == null) {
+			imageIds = new int[0];
+		}
 		List<Integer> idList = Arrays.stream(imageIds).boxed().collect(Collectors.toList());
 		idList.removeIf(i -> i.equals(ijOutputId));
 		idList.add(0, ijOutputId);
@@ -501,10 +506,10 @@ public class BatchRunner extends Thread {
 
 
 	private void uploadTables() {
-		if (outputOnOMERO) {
+		if (outputOnOMERO && saveResults) {
 			setState("Uploading tables...");
 			try {
-				DatasetWrapper dataset = client.getDataset(outputDatasetId);
+				ProjectWrapper project = client.getProject(outputProjectId);
 				for (Map.Entry<String, TableWrapper> entry : tables.entrySet()) {
 					String name = entry.getKey();
 					TableWrapper table = entry.getValue();
@@ -513,7 +518,7 @@ public class BatchRunner extends Thread {
 					if (name == null || name.equals("")) newName = timestamp + "_" + table.getName();
 					else newName = timestamp + "_" + name;
 					table.setName(newName);
-					dataset.addTable(client, table);
+					project.addTable(client, table);
 				}
 			} catch (ExecutionException | ServiceException | AccessException e) {
 				IJ.error("Could not save table: " + e.getMessage());
@@ -554,6 +559,16 @@ public class BatchRunner extends Thread {
 
 	public Client getClient() {
 		return client;
+	}
+
+
+	public long getOutputProjectId() {
+		return outputProjectId;
+	}
+
+
+	public void setOutputProjectId(Long outputProjectId) {
+		if (outputProjectId != null) this.outputProjectId = outputProjectId;
 	}
 
 

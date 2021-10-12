@@ -57,8 +57,6 @@ public class BatchWindow extends JFrame implements BatchListener {
 	private final JCheckBox checkROIs = new JCheckBox(" The macro returns ROIs ");
 	private final JCheckBox checkLog = new JCheckBox(" The macro returns Log file ");
 
-	// choice of output
-	private final JPanel panelOutput = new JPanel();
 	private final JPanel output1 = new JPanel();
 	private final JTextField suffix = new JTextField(10);
 
@@ -72,6 +70,7 @@ public class BatchWindow extends JFrame implements BatchListener {
 	private final JComboBox<String> datasetListOut = new JComboBox<>();
 	private final JLabel labelOutputProject = new JLabel();
 	private final JLabel labelOutputDataset = new JLabel();
+	private final JButton newDatasetBtn = new JButton("New");
 
 	// local
 	private final JPanel output3b = new JPanel();
@@ -84,6 +83,7 @@ public class BatchWindow extends JFrame implements BatchListener {
 	private String directoryOut;
 	private String directoryIn;
 	private Long outputDatasetId;
+	private Long outputProjectId;
 	private transient List<ProjectWrapper> groupProjects;
 	private transient List<ProjectWrapper> userProjects;
 	private transient List<DatasetWrapper> datasets;
@@ -220,6 +220,7 @@ public class BatchWindow extends JFrame implements BatchListener {
 		output1.add(labelExtension);
 		output1.add(suffix);
 		suffix.setText("_macro");
+		output1.setVisible(false);
 
 		JPanel output2 = new JPanel();
 		JLabel labelRecordOption = new JLabel("Where to save results :");
@@ -241,17 +242,23 @@ public class BatchWindow extends JFrame implements BatchListener {
 		JLabel labelExistDatasetName = new JLabel();
 		output3a.add(labelExistDatasetName);
 		labelExistDatasetName.setFont(nameFont);
-		JButton newDataset = new JButton("New");
-		newDataset.addActionListener(this::createNewDataset);
-		output3a.add(newDataset);
+		newDatasetBtn.addActionListener(this::createNewDataset);
+		output3a.add(newDatasetBtn);
+		output3a.setVisible(false);
 
 		output3b.add(directory);
 		directory.setMaximumSize(new Dimension(300, 30));
 		JButton directoryBtn = new JButton("Output directory");
 		output3b.add(directoryBtn);
 		directoryBtn.addActionListener(e -> chooseDirectory(directory));
-		//
+		output3b.setVisible(false);
+
+		// choice of output
+		JPanel panelOutput = new JPanel();
+		panelOutput.add(output1);
 		panelOutput.add(output2);
+		panelOutput.add(output3a);
+		panelOutput.add(output3b);
 		panelOutput.setLayout(new BoxLayout(panelOutput, BoxLayout.PAGE_AXIS));
 		panelOutput.setBorder(BorderFactory.createTitledBorder("Output"));
 		cp.add(panelOutput);
@@ -473,7 +480,6 @@ public class BatchWindow extends JFrame implements BatchListener {
 			checkLoadROIs.setSelected(false);
 			panelInput.remove(input2a);
 		}
-		BatchWindow.this.setVisible(true);
 	}
 
 
@@ -544,58 +550,57 @@ public class BatchWindow extends JFrame implements BatchListener {
 			runner.setDirectoryIn(directoryIn);
 		}
 
+		if (!checkInput || !checkMacro || !checkOutput) {
+			return;
+		}
+
 		// suffix
 		runner.setSuffix(suffix.getText());
 
-		if (checkInput && checkMacro && checkOutput) {
-			runner.setLoadROIS(checkLoadROIs.isSelected());
-			runner.setClearROIS(checkDelROIs.isSelected());
-			runner.setSaveImage(checkImage.isSelected());
-			runner.setSaveResults(checkResults.isSelected());
-			runner.setSaveROIs(checkROIs.isSelected());
-			runner.setSaveLog(checkLog.isSelected());
-			if (onlineOutput.isSelected()) {
-				runner.setOutputOnOMERO(true);
-				if (checkImage.isSelected()) {
-					runner.setOutputDatasetId(outputDatasetId);
-				}
+		runner.setLoadROIS(checkLoadROIs.isSelected());
+		runner.setClearROIS(checkDelROIs.isSelected());
+		runner.setSaveImage(checkImage.isSelected());
+		runner.setSaveResults(checkResults.isSelected());
+		runner.setSaveROIs(checkROIs.isSelected());
+		runner.setSaveLog(checkLog.isSelected());
+		if (onlineOutput.isSelected()) {
+			runner.setOutputOnOMERO(true);
+			if (checkResults.isSelected()) {
+				runner.setOutputProjectId(outputProjectId);
 			}
-			if (localOutput.isSelected()) {
-				runner.setOutputOnLocal(true);
-				runner.setDirectoryOut(directoryOut);
+			if (checkImage.isSelected()) {
+				runner.setOutputDatasetId(outputDatasetId);
 			}
+		}
+		if (localOutput.isSelected()) {
+			runner.setOutputOnLocal(true);
+			runner.setDirectoryOut(directoryOut);
+		}
 
-			runner.setMacro(macroChosen);
-			start.setEnabled(false);
-			try {
-				runner.start();
-			} catch (Exception exception) {
-				errorWindow(exception.getMessage());
-			}
+		runner.setMacro(macroChosen);
+		start.setEnabled(false);
+		try {
+			runner.start();
+		} catch (Exception exception) {
+			errorWindow(exception.getMessage());
 		}
 	}
 
 
 	private void updateOutput(ItemEvent e) {
-		if (checkImage.isSelected()) {
-			panelOutput.remove(output3b);
-			panelOutput.add(output1);
-			if (onlineOutput.isSelected()) {
-				panelOutput.add(output3a);
-			} else {
-				panelOutput.remove(output3a);
-			}
-		} else {
-			panelOutput.remove(output1);
-			panelOutput.remove(output3a);
-			panelOutput.remove(output3b);
+		boolean outputOnline = onlineOutput.isSelected();
+		boolean outputLocal = localOutput.isSelected();
+		boolean outputImage = checkImage.isSelected();
+		boolean outputResults = checkResults.isSelected();
+
+		output1.setVisible(outputImage);
+		output3a.setVisible(outputOnline && (outputImage || outputResults));
+		datasetListOut.setVisible(outputImage);
+		newDatasetBtn.setVisible(outputImage);
+		if (userProjects.equals(myProjects)) {
+			projectListOut.setSelectedIndex(projectListIn.getSelectedIndex());
 		}
-		if (localOutput.isSelected()) {
-			panelOutput.add(output3b);
-		} else {
-			panelOutput.remove(output3b);
-		}
-		this.setVisible(true);
+		output3b.setVisible(outputLocal);
 	}
 
 
@@ -639,13 +644,18 @@ public class BatchWindow extends JFrame implements BatchListener {
 	private boolean getOMEROOutput() {
 		boolean check = false;
 		if (onlineOutput.isSelected()) {
-			int index = datasetListOut.getSelectedIndex();
-			if (index == -1 || index > datasets.size()) {
+			int projIndex = projectListOut.getSelectedIndex();
+			int datIndex = datasetListOut.getSelectedIndex();
+			if (projIndex == -1 || projIndex > myProjects.size()) {
+				errorWindow(String.format("Output:%nNo project selected"));
+			} else if (datIndex == -1 || datIndex > myDatasets.size()) {
 				errorWindow(String.format("Output:%nNo dataset selected"));
 			} else {
 				check = true;
-				DatasetWrapper dataset = datasets.get(index);
+				DatasetWrapper dataset = myDatasets.get(datIndex);
+				ProjectWrapper project = myProjects.get(projIndex);
 				outputDatasetId = dataset.getId();
+				outputProjectId = project.getId();
 			}
 		}
 		return check;
