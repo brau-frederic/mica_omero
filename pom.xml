@@ -3,6 +3,11 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <artifactId>pom-scijava-base</artifactId>
+        <groupId>org.scijava</groupId>
+        <version>12.0.0</version>
+    </parent>
 
     <groupId>mica</groupId>
     <artifactId>batch-omero-plugin</artifactId>
@@ -10,11 +15,129 @@
 
     <name>batch-omero-plugin</name>
     <description>ImageJ plugin to batch process images from OMERO.</description>
+    <url>https://github.com/GReD-Clermont/batch-omero-plugin</url>
+    <inceptionYear>2021</inceptionYear>
+
+    <organization>
+        <name>MICA &amp; GReD</name>
+    </organization>
+
+    <licenses>
+        <license>
+            <name>GNU General Public License v2+</name>
+            <url>https://www.gnu.org/licenses/gpl-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>brau-frederic</id>
+            <name>Frederic Brau</name>
+            <email>brau@ipmc.cnrs.fr</email>
+            <url>https://www.ipmc.cnrs.fr/cgi-bin/fiche_agent.cgi?equipe=commun&amp;login=brau</url>
+            <organization>MICA (Microscopie Imagerie Côte d'Azur)</organization>
+            <organizationUrl>https://univ-cotedazur.fr/mica</organizationUrl>
+            <roles>
+                <role>lead</role>
+                <role>debugger</role>
+            </roles>
+            <timezone>Europe/Paris</timezone>
+        </developer>
+        <developer>
+            <id>ppouchin</id>
+            <name>Pierre Pouchin</name>
+            <email>pierre.pouchin@uca.fr</email>
+            <url>https://www.gred-clermont.fr/directory/member/pierre-pouchin/</url>
+            <organization>GReD (INSERM U1103 / CNRS UMR 6293 / UCA)</organization>
+            <organizationUrl>https://www.gred-clermont.fr</organizationUrl>
+            <roles>
+                <role>lead</role>
+                <role>developer</role>
+                <role>maintainer</role>
+            </roles>
+            <timezone>Europe/Paris</timezone>
+        </developer>
+    </developers>
+
+    <contributors>
+        <contributor>
+            <name>Frederic Brau</name>
+            <email>brau@ipmc.cnrs.fr</email>
+        </contributor>
+        <contributor>
+            <name>Pierre Pouchin</name>
+            <email>pierre.pouchin@uca.fr</email>
+        </contributor>
+        <contributor>
+            <name>Maxence Delannoy</name>
+        </contributor>
+        <contributor>
+            <name>Manon Carvalho</name>
+        </contributor>
+        <contributor>
+            <name>Clemence Belle</name>
+        </contributor>
+        <contributor>
+            <name>Rayan Zoghlami</name>
+        </contributor>
+    </contributors>
+
+    <mailingLists>
+        <mailingList>
+            <name>Image.sc Forum</name>
+            <archive>https://forum.image.sc/tag/omero</archive>
+        </mailingList>
+    </mailingLists>
+
+    <scm>
+        <connection>scm:git:git://github.com/GReD-Clermont/batch-omero-plugin</connection>
+        <developerConnection>scm:git:git@github.com:GReD-Clermont/batch-omero-plugin</developerConnection>
+        <tag>HEAD</tag>
+        <url>https://github.com/GReD-Clermont/batch-omero-plugin</url>
+    </scm>
+    <issueManagement>
+        <system>GitHub Issues</system>
+        <url>https://github.com/GReD-Clermont/batch-omero-plugin/issues</url>
+    </issueManagement>
+    <ciManagement>
+        <system>GitHub Actions</system>
+        <url>https://github.com/GReD-Clermont/batch-omero-plugin/actions</url>
+    </ciManagement>
+    <distributionManagement>
+        <repository>
+            <id>github</id>
+            <name>GitHub GReD-Clermont Apache Maven Packages</name>
+            <url>https://maven.pkg.github.com/GReD-Clermont/batch-omero-plugin</url>
+        </repository>
+    </distributionManagement>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.source>8</maven.compiler.source>
+        <maven.compiler.target>8</maven.compiler.target>
+        <license.licenseName>gpl_v2</license.licenseName>
+        <license.copyrightOwners>MICA &amp; GReD</license.copyrightOwners>
+        <allowedDuplicateClasses>com.esotericsoftware.kryo.*,com.esotericsoftware.minlog.*,com.esotericsoftware.reflectasm.*</allowedDuplicateClasses>
+        <soc.version>5.8.2</soc.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>fr.igred</groupId>
+                <artifactId>simple-omero-client</artifactId>
+                <version>${soc.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <dependencies>
         <dependency>
             <groupId>net.imagej</groupId>
-			<artifactId>ij</artifactId>
+            <artifactId>ij</artifactId>
             <version>1.53c</version>
             <scope>provided</scope>
         </dependency>
@@ -22,14 +145,14 @@
             <groupId>ome</groupId>
             <artifactId>bio-formats_plugins</artifactId>
             <version>6.6.1</version>
-			<scope>provided</scope>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>fr.igred</groupId>
             <artifactId>simple-omero-client</artifactId>
-            <version>5.8.2</version>
+            <version>${soc.version}</version>
         </dependency>
-	</dependencies>
+    </dependencies>
 
     <repositories>
         <repository>
@@ -134,11 +257,5 @@
             </plugin>
         </plugins>
     </reporting>
-
-    <properties>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven.compiler.source>8</maven.compiler.source>
-        <maven.compiler.target>8</maven.compiler.target>
-    </properties>
 
 </project>
