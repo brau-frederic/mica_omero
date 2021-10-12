@@ -261,6 +261,17 @@ public class BatchRunner extends Thread {
 			// Open the image
 			ImporterOptions options = new ImporterOptions();
 			options.setId(image);
+			options.setStackFormat(ImporterOptions.VIEW_HYPERSTACK);
+			options.setSwapDimensions(false);
+			options.setOpenAllSeries(false);
+			options.setSpecifyRanges(false);
+			options.setShowMetadata(false);
+			options.setShowOMEXML(false);
+			options.setShowROIs(true);
+			options.setCrop(false);
+			options.setSplitChannels(false);
+			options.setSplitFocalPlanes(false);
+			options.setSplitTimepoints(false);
 
 			ImportProcess process = new ImportProcess(options);
 			process.execute();
