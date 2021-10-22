@@ -151,12 +151,13 @@ public class BatchWindow extends JFrame implements BatchListener {
 		JLabel labelEnterType = new JLabel("Where to get files to analyze :");
 		input1.add(labelEnterType);
 		input1.add(omero);
+		input1.add(local);
 		ButtonGroup inputData = new ButtonGroup();
 		inputData.add(omero);
-		omero.addItemListener(this::updateInput);
-		input1.add(local);
 		inputData.add(local);
+		omero.addItemListener(this::updateInput);
 		local.addItemListener(this::updateInput);
+
 		JLabel labelProjectIn = new JLabel(projectName);
 		input2a.add(labelProjectIn);
 		input2a.add(projectListIn);
@@ -177,7 +178,10 @@ public class BatchWindow extends JFrame implements BatchListener {
 		JButton inputFolderBtn = new JButton("Images directory");
 		input2b.add(inputFolderBtn);
 		inputFolderBtn.addActionListener(e -> chooseDirectory(inputFolder));
+
 		panelInput.add(input1);
+		panelInput.add(input2a);
+		panelInput.add(input2b);
 		omero.setSelected(true);
 		panelInput.setLayout(new BoxLayout(panelInput, BoxLayout.PAGE_AXIS));
 		panelInput.setBorder(BorderFactory.createTitledBorder("Input"));
@@ -472,13 +476,13 @@ public class BatchWindow extends JFrame implements BatchListener {
 
 	private void updateInput(ItemEvent e) {
 		if (omero.isSelected()) {
-			panelInput.add(input2a);
-			panelInput.remove(input2b);
+			input2a.setVisible(true);
+			input2b.setVisible(false);
 		} else { //local.isSelected()
-			panelInput.add(input2b);
+			input2b.setVisible(true);
 			checkDelROIs.setSelected(false);
 			checkLoadROIs.setSelected(false);
-			panelInput.remove(input2a);
+			input2a.setVisible(false);
 		}
 	}
 
