@@ -19,8 +19,7 @@ public class ConnectDialog extends JDialog implements ActionListener {
 	private final transient Client client;
 
 	private final JTextField hostField = new JTextField("bioimage.france-bioinformatique.fr");
-	private final JFormattedTextField portField = new JFormattedTextField(NumberFormat
-																				  .getIntegerInstance());
+	private final JFormattedTextField portField = new JFormattedTextField(NumberFormat.getIntegerInstance());
 	private final JTextField userField = new JTextField("");
 	private final JPasswordField passwordField = new JPasswordField("");
 	private final JButton login = new JButton("Login");

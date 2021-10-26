@@ -2,12 +2,15 @@ package mica.gui;
 
 import fr.igred.omero.Client;
 import fr.igred.omero.exception.AccessException;
+import fr.igred.omero.exception.OMEROServerError;
 import fr.igred.omero.exception.ServiceException;
 import fr.igred.omero.meta.ExperimenterWrapper;
 import fr.igred.omero.meta.GroupWrapper;
 import fr.igred.omero.repository.DatasetWrapper;
+import fr.igred.omero.repository.ImageWrapper;
 import fr.igred.omero.repository.ProjectWrapper;
 import ij.IJ;
+import loci.plugins.config.SpringUtilities;
 import mica.process.BatchListener;
 import mica.process.BatchRunner;
 
@@ -20,6 +23,7 @@ import java.awt.event.ItemEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -34,7 +38,6 @@ public class BatchWindow extends JFrame implements BatchListener {
 	private final JButton start = new JButton("Start");
 
 	// choices of input images
-	private final JPanel panelInput = new JPanel();
 	private final JPanel input2a = new JPanel();
 	private final JPanel input2b = new JPanel();
 
@@ -159,17 +162,24 @@ public class BatchWindow extends JFrame implements BatchListener {
 		local.addItemListener(this::updateInput);
 
 		JLabel labelProjectIn = new JLabel(projectName);
+		labelProjectIn.setLabelFor(projectListIn);
 		input2a.add(labelProjectIn);
 		input2a.add(projectListIn);
 		projectListIn.addItemListener(this::updateInputProject);
 		input2a.add(labelInputProject);
 		labelInputProject.setFont(nameFont);
+		labelInputProject.setLabelFor(projectListIn);
 		JLabel labelDatasetIn = new JLabel(datasetName);
+		labelDatasetIn.setLabelFor(datasetListIn);
 		input2a.add(labelDatasetIn);
 		input2a.add(datasetListIn);
 		datasetListIn.addItemListener(this::updateInputDataset);
 		input2a.add(labelInputDataset);
 		labelInputDataset.setFont(nameFont);
+		labelInputDataset.setLabelFor(datasetListIn);
+		JButton preview = new JButton("Preview");
+		preview.addActionListener(e -> previewDataset());
+		input2a.add(preview);
 		input2a.add(checkLoadROIs);
 		input2a.add(checkDelROIs);
 
@@ -179,6 +189,7 @@ public class BatchWindow extends JFrame implements BatchListener {
 		input2b.add(inputFolderBtn);
 		inputFolderBtn.addActionListener(e -> chooseDirectory(inputFolder));
 
+		JPanel panelInput = new JPanel();
 		panelInput.add(input1);
 		panelInput.add(input2a);
 		panelInput.add(input2b);
@@ -209,6 +220,7 @@ public class BatchWindow extends JFrame implements BatchListener {
 		macro5.setLayout(new BoxLayout(macro5, BoxLayout.LINE_AXIS));
 		checkLog.addItemListener(this::updateOutput);
 		macro4.add(checkLog);
+
 		//choice of the macro
 		JPanel panelMacro = new JPanel();
 		panelMacro.add(macro1);
@@ -526,6 +538,40 @@ public class BatchWindow extends JFrame implements BatchListener {
 	@Override
 	public void onThreadFinished() {
 		start.setEnabled(true);
+	}
+
+
+	private void previewDataset() {
+		int index = datasetListIn.getSelectedIndex();
+		DatasetWrapper dataset = datasets.get(index);
+		try {
+			JPanel panel = new JPanel(new SpringLayout());
+			List<ImageWrapper> images = dataset.getImages(client);
+			int nRows = Math.min(images.size(), 5);
+			int missing = images.size() - nRows;
+			List<ImageWrapper> truncated = images.subList(0, nRows);
+			for (ImageWrapper i : truncated) {
+				JLabel thumbnail = new JLabel(new ImageIcon(i.getThumbnail(client, 96)));
+				panel.add(thumbnail);
+
+				JLabel name = new JLabel(i.getName());
+				name.setLabelFor(thumbnail);
+				panel.add(name);
+			}
+			if (missing != 0) {
+				panel.add(new JLabel());
+				JLabel etc = new JLabel("+ " + missing + " images not shown...");
+				panel.add(etc);
+				nRows++;
+			}
+			SpringUtilities.makeCompactGrid(panel, //parent
+											nRows, 2,
+											5, 5,  //initX, initY
+											10, 10); //xPad, yPad
+			JOptionPane.showMessageDialog(this, panel, "Preview", JOptionPane.INFORMATION_MESSAGE);
+		} catch (ServiceException | AccessException | OMEROServerError | IOException e) {
+			errorWindow(e.getMessage());
+		}
 	}
 
 
