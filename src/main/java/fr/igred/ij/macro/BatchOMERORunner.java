@@ -22,7 +22,6 @@ import loci.formats.FormatException;
 import loci.plugins.BF;
 import loci.plugins.in.ImportProcess;
 import loci.plugins.in.ImporterOptions;
-import org.apache.commons.io.FilenameUtils;
 
 import java.awt.Frame;
 import java.io.File;
@@ -37,6 +36,7 @@ import java.util.stream.Collectors;
 
 public class BatchOMERORunner extends Thread {
 
+	private final ScriptRunner script;
 	private final Client client;
 	private final ProgressMonitor progress;
 
@@ -56,7 +56,6 @@ public class BatchOMERORunner extends Thread {
 	private long outputProjectId;
 	private String directoryIn = "";
 	private String directoryOut;
-	private String macro;
 	private String suffix;
 
 	private RoiManager rm;
@@ -64,15 +63,17 @@ public class BatchOMERORunner extends Thread {
 	private BatchListener listener;
 
 
-	public BatchOMERORunner(Client client) {
+	public BatchOMERORunner(ScriptRunner script, Client client) {
 		super();
+		this.script = script;
 		this.client = client;
 		this.progress = new ProgressLog(Logger.getLogger(getClass().getName()));
 	}
 
 
-	public BatchOMERORunner(Client client, ProgressMonitor progress) {
+	public BatchOMERORunner(ScriptRunner script, Client client, ProgressMonitor progress) {
 		super();
+		this.script = script;
 		this.client = client;
 		this.progress = progress;
 	}
@@ -178,7 +179,7 @@ public class BatchOMERORunner extends Thread {
 		//""" List all image's paths contained in a directory """
 		File dir = new File(directory);
 		File[] files = dir.listFiles();
-		if(files == null) files = new File[0];
+		if (files == null) files = new File[0];
 		List<String> pathsImagesIni = new ArrayList<>();
 		for (File value : files) {
 			String file = value.getAbsolutePath();
@@ -220,7 +221,6 @@ public class BatchOMERORunner extends Thread {
 		//""" Run a macro on images and save the result """
 		String property = "ROI";
 		ij.WindowManager.closeAllWindows();
-		String call = "0";
 		int index = 0;
 		for (ImageWrapper image : images) {
 			setProgress("Image " + (index + 1) + "/" + images.size());
@@ -243,8 +243,7 @@ public class BatchOMERORunner extends Thread {
 			imp.show();
 
 			// Analyse the images.
-			IJ.runMacroFile(macro, call);
-			call = "1";
+			script.run();
 
 			imp.changes = false; // Prevent "Save Changes?" dialog
 			save(imp, inputImageId, title, property);
@@ -258,7 +257,6 @@ public class BatchOMERORunner extends Thread {
 		//""" Run a macro on images from local computer and save the result """
 		String property = "ROI";
 		WindowManager.closeAllWindows();
-		String call = "0";
 		int index = 0;
 		for (String image : images) {
 			// Open the image
@@ -294,8 +292,7 @@ public class BatchOMERORunner extends Thread {
 				String title = removeExtension(imp.getTitle());
 
 				// Analyse the images
-				IJ.runMacroFile(macro, call);
-				call = "1";
+				script.run();
 
 				// Save and Close the various components
 				imp.changes = false; // Prevent "Save Changes?" dialog
@@ -309,10 +306,17 @@ public class BatchOMERORunner extends Thread {
 
 
 	private String removeExtension(String title) {
-		if (title.matches("(.*)qptiff(.*)")) {
+		if (title != null && title.matches("(.*)qptiff(.*)")) {
 			return title.replace(".qptiff", "_");
+		} else if (title != null) {
+			int index = title.lastIndexOf('.');
+			if (index == 0 || index == -1) {
+				return title;
+			} else {
+				return title.substring(0, index);
+			}
 		} else {
-			return FilenameUtils.removeExtension(title);
+			return null;
 		}
 	}
 
@@ -355,7 +359,7 @@ public class BatchOMERORunner extends Thread {
 		int ijOutputId = outputImage.getID();
 
 		int[] imageIds = WindowManager.getIDList();
-		if(imageIds == null) {
+		if (imageIds == null) {
 			imageIds = new int[0];
 		}
 		List<Integer> idList = Arrays.stream(imageIds).boxed().collect(Collectors.toList());
@@ -670,16 +674,6 @@ public class BatchOMERORunner extends Thread {
 
 	public void setDirectoryOut(String directoryOut) {
 		this.directoryOut = directoryOut;
-	}
-
-
-	public String getMacro() {
-		return macro;
-	}
-
-
-	public void setMacro(String macro) {
-		this.macro = macro;
 	}
 
 
