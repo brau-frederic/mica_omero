@@ -452,6 +452,7 @@ public class OMEROBatchRunner extends Thread {
 					appendTable(rt, imageId, ijRois, property);
 					uploadFile(imageId, path);
 				}
+				rt.reset();
 			}
 			String[] candidates = WindowManager.getNonImageTitles();
 			for (String candidate : candidates) {
@@ -466,6 +467,7 @@ public class OMEROBatchRunner extends Thread {
 					appendTable(rt, imageId, ijRois, property);
 					uploadFile(imageId, path);
 				}
+				rt.reset();
 			}
 		}
 	}
