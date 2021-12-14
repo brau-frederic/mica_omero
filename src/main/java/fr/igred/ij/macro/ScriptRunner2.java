@@ -24,6 +24,9 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * Runs an ImageJ2 script.
+ */
 public class ScriptRunner2 extends ScriptRunner {
 
 	private final boolean detectedInputs;
@@ -32,6 +35,11 @@ public class ScriptRunner2 extends ScriptRunner {
 	private String language = "";
 
 
+	/**
+	 * Creates a new object for the specified script.
+	 *
+	 * @param path The path to the script.
+	 */
 	public ScriptRunner2(String path) {
 		super(path);
 		final Context ctx = (Context) IJ.runPlugIn("org.scijava.Context", "");
@@ -45,7 +53,8 @@ public class ScriptRunner2 extends ScriptRunner {
 			script = scriptService.getScript(new File(path)).createModule();
 			script.setContext(ctx);
 		} catch (ModuleException e) {
-			IJ.error("Could not create script module");
+			IJ.error("Could not create script module from script service.");
+			script = new ScriptModule(new ScriptInfo(ctx, path));
 		}
 		ScriptLanguage lang = script.getInfo().getLanguage();
 		if (lang != null) {
@@ -60,16 +69,38 @@ public class ScriptRunner2 extends ScriptRunner {
 				inputs.put(input.getName(), input.getDefaultValue());
 			}
 		}
-		detectedInputs = inputs.size() > 0;
+		detectedInputs = !inputs.isEmpty();
 		if (detectedInputs) {
 			script.setInputs(inputs);
 		}
 	}
 
 
+	/**
+	 * Parses a number in a string.
+	 *
+	 * @param s A string.
+	 *
+	 * @return A number if the string contains one, the string itself otherwise.
+	 */
+	private static Object parseString(String s) {
+		try {
+			return NumberFormat.getInstance().parse(s);
+		} catch (ParseException e) {
+			return s;
+		}
+	}
+
+
+	/**
+	 * Sets the image to process.
+	 *
+	 * @param imp The image.
+	 */
 	@Override
 	public void setImage(ImagePlus imp) {
-		boolean macro = getLanguage().equals("IJ1 Macro");
+		boolean macro = "IJ1 Macro".equals(getLanguage())
+						|| ".ijm".equals(getLanguage());
 		if (detectedInputs || !macro) {
 			for (ModuleItem<?> input : script.getInfo().inputs()) {
 				if (input.getType().equals(ImagePlus.class)) {
@@ -85,6 +116,11 @@ public class ScriptRunner2 extends ScriptRunner {
 	}
 
 
+	/**
+	 * Retrieves the arguments for the script.
+	 *
+	 * @return See above.
+	 */
 	@Override
 	public String getArguments() {
 		if (inputs == null || inputs.isEmpty()) {
@@ -95,6 +131,11 @@ public class ScriptRunner2 extends ScriptRunner {
 	}
 
 
+	/**
+	 * Sets the arguments for the script.
+	 *
+	 * @param arguments See above.
+	 */
 	@Override
 	public void setArguments(String arguments) {
 		super.setArguments(arguments);
@@ -106,12 +147,20 @@ public class ScriptRunner2 extends ScriptRunner {
 	}
 
 
+	/**
+	 * Retrieves the script language (or the file extension).
+	 *
+	 * @return See above.
+	 */
 	@Override
 	public String getLanguage() {
-		return !language.isEmpty() ? language : super.getLanguage();
+		return language.isEmpty() ? super.getLanguage() : language;
 	}
 
 
+	/**
+	 * Displays an input dialog to define the input parameters.
+	 */
 	@Override
 	public void showInputDialog() {
 		if (detectedInputs) {
@@ -138,9 +187,13 @@ public class ScriptRunner2 extends ScriptRunner {
 	}
 
 
+	/**
+	 * Runs the script.
+	 */
 	@Override
 	public void run() {
-		boolean macro = getLanguage().equals("IJ1 Macro");
+		boolean macro = "IJ1 Macro".equals(getLanguage())
+						|| ".ijm".equals(getLanguage());
 		if (detectedInputs || !macro) {
 			for (ModuleItem<?> input : script.getInfo().inputs()) {
 				if (input.getType().equals(ImagePlus.class) && script.getInput(input.getName()) == null) {
@@ -160,27 +213,32 @@ public class ScriptRunner2 extends ScriptRunner {
 	}
 
 
+	/**
+	 * Resets the script (marks inputs as unresolved).
+	 */
 	@Override
 	public void reset() {
 		inputs.keySet().forEach(script::unresolveInput);
 	}
 
 
+	/**
+	 * Parses the arguments from a string.
+	 */
 	private void parseArguments() {
 		String args = super.getArguments();
-		if (!getArguments().isEmpty()) {
-			try {
-				inputs = Arrays.stream(args.split(",")).map(s -> s.split("="))
-							   .collect(Collectors.toMap(s -> s[0], s -> parseString(s[1])));
-			} catch (ArrayIndexOutOfBoundsException e) {
-				IJ.error("Wrong format for arguments");
-			}
-		} else {
+		if (getArguments().isEmpty()) {
 			inputs.clear();
+		} else {
+			inputs = Arrays.stream(args.split(",")).map(s -> s.split("="))
+						   .collect(Collectors.toMap(s -> s[0], s -> s.length > 1 ? parseString(s[1]) : ""));
 		}
 	}
 
 
+	/**
+	 * Adds inputs to the script.
+	 */
 	private void addInputs() {
 		for (Map.Entry<String, Object> input : inputs.entrySet()) {
 			ScriptInfo scriptInfo = script.getInfo();
@@ -198,15 +256,6 @@ public class ScriptRunner2 extends ScriptRunner {
 					scriptInfo.registerInput(newInput);
 				}
 			}
-		}
-	}
-
-
-	private Object parseString(String s) {
-		try {
-			return NumberFormat.getInstance().parse(s);
-		} catch (ParseException e) {
-			return s;
 		}
 	}
 

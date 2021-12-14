@@ -15,32 +15,57 @@ import ij.ImagePlus;
 import ij.WindowManager;
 import ij.gui.Overlay;
 import ij.gui.Roi;
+import ij.io.RoiEncoder;
 import ij.measure.ResultsTable;
 import ij.plugin.frame.RoiManager;
 import ij.text.TextWindow;
+import loci.formats.FileStitcher;
 import loci.formats.FormatException;
 import loci.plugins.BF;
 import loci.plugins.in.ImportProcess;
 import loci.plugins.in.ImporterOptions;
 
+import java.awt.Component;
 import java.awt.Frame;
+import java.io.BufferedOutputStream;
+import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
 import java.nio.file.Files;
-import java.text.SimpleDateFormat;
-import java.util.*;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
-
+/**
+ * Runs a script over multiple images retrieved from local files or from OMERO.
+ */
 public class OMEROBatchRunner extends Thread {
+
+	private static final Logger LOGGER = Logger.getLogger(MethodHandles.lookup().lookupClass().getName());
+
+	private static final File[] EMPTY_FILE_ARRAY = new File[0];
+	private static final int[] EMPTY_INT_ARRAY = new int[0];
 
 	private final ScriptRunner script;
 	private final Client client;
 	private final ProgressMonitor progress;
 
-	private final Map<String, TableWrapper> tables = new HashMap<>();
+	private final Map<String, TableWrapper> tables = new HashMap<>(5);
 
 	private boolean inputOnOMERO;
 	private boolean saveImage;
@@ -51,10 +76,11 @@ public class OMEROBatchRunner extends Thread {
 	private boolean clearROIs;
 	private boolean outputOnOMERO;
 	private boolean outputOnLocal;
+	private boolean recursive;
 	private long inputDatasetId;
 	private long outputDatasetId;
 	private long outputProjectId;
-	private String directoryIn = "";
+	private String directoryIn;
 	private String directoryOut;
 	private String suffix;
 
@@ -64,10 +90,7 @@ public class OMEROBatchRunner extends Thread {
 
 
 	public OMEROBatchRunner(ScriptRunner script, Client client) {
-		super();
-		this.script = script;
-		this.client = client;
-		this.progress = new ProgressLog(Logger.getLogger(getClass().getName()));
+		this(script, client, new ProgressLog(LOGGER));
 	}
 
 
@@ -76,25 +99,275 @@ public class OMEROBatchRunner extends Thread {
 		this.script = script;
 		this.client = client;
 		this.progress = progress;
+		this.directoryIn = "";
+		this.suffix = "";
+		this.directoryOut = null;
+		this.rm = null;
+		this.listener = null;
 	}
 
 
+	/**
+	 * Generates the timestamp for current time.
+	 *
+	 * @return See above.
+	 */
+	private static String timestamp() {
+		return DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss").format(ZonedDateTime.now());
+	}
+
+
+	/**
+	 * Removes file extension from image title.
+	 *
+	 * @param title Image title.
+	 *
+	 * @return The title, without the extension.
+	 */
+	private static String removeExtension(String title) {
+		if (title != null && title.matches("(.*)qptiff(.*)")) {
+			return title.replace(".qptiff", "_");
+		} else if (title != null) {
+			int index = title.lastIndexOf('.');
+			if (index == 0 || index == -1) {
+				return title;
+			} else {
+				return title.substring(0, index);
+			}
+		} else {
+			return null;
+		}
+	}
+
+
+	/**
+	 * Deletes the temp folder.
+	 *
+	 * @param tmpDir The temp folder.
+	 *
+	 * @return True if the deletion was successful.
+	 */
+	private static boolean deleteTemp(String tmpDir) {
+		boolean deleted = true;
+		File dir = new File(tmpDir);
+		File[] entries = dir.listFiles();
+		if (entries != null) {
+			try {
+				for (File entry : entries) {
+					deleted &= Files.deleteIfExists(entry.toPath());
+				}
+				deleted &= Files.deleteIfExists(dir.toPath());
+			} catch (IOException e) {
+				IJ.error("Could not delete files: " + e.getMessage());
+			}
+		}
+		return deleted;
+	}
+
+
+	/**
+	 * List all files contained in a directory
+	 *
+	 * @param directory The folder to process
+	 *
+	 * @return The list of images paths.
+	 */
+	private static List<String> getFilesFromDirectory(String directory, boolean recursive) {
+		File dir = new File(directory);
+		File[] files = dir.listFiles();
+		if (files == null) files = EMPTY_FILE_ARRAY;
+		List<String> paths = new ArrayList<>(files.length);
+		for (File file : files) {
+			String path = file.getAbsolutePath();
+			if (!file.isDirectory()) {
+				paths.add(path);
+			} else if (recursive) {
+				paths.addAll(getFilesFromDirectory(path, true));
+			}
+		}
+		return paths;
+	}
+
+
+	/**
+	 * Retrieves the images in a list of files using Bio-Formats.
+	 *
+	 * @param files   The list of files.
+	 * @param options The Bio-Formats importer options.
+	 *
+	 * @return A map containing the number of images for each file.
+	 */
+	private static Map<String, Integer> getImagesFromFiles(Collection<String> files, ImporterOptions options) {
+		List<String> used = new ArrayList<>(files.size());
+		Map<String, Integer> imageFiles = new LinkedHashMap<>(files.size());
+		for (String file : files) {
+			if (!used.contains(file)) {
+				// Open the image
+				options.setId(file);
+				ImportProcess process = new ImportProcess(options);
+				try {
+					process.execute();
+					int n = process.getSeriesCount();
+					FileStitcher fs = process.getFileStitcher();
+					if (fs != null) used = Arrays.asList(fs.getUsedFiles());
+					else used.add(file);
+					imageFiles.put(file, n);
+				} catch (IOException | FormatException e) {
+					LOGGER.info(e.getMessage());
+				}
+			}
+		}
+		return imageFiles;
+	}
+
+
+	/**
+	 * Retrieves the list of images open after the script was run.
+	 *
+	 * @param inputImage The input image.
+	 *
+	 * @return See above.
+	 */
+	private static List<ImagePlus> getOutputImages(ImagePlus inputImage) {
+		ImagePlus outputImage = WindowManager.getCurrentImage();
+		if (outputImage == null) {
+			outputImage = inputImage;
+		}
+		int ijOutputId = outputImage.getID();
+
+		int[] imageIds = WindowManager.getIDList();
+		if (imageIds == null) {
+			imageIds = EMPTY_INT_ARRAY;
+		}
+		List<Integer> idList = Arrays.stream(imageIds).boxed().collect(Collectors.toList());
+		idList.removeIf(i -> i.equals(ijOutputId));
+		idList.add(0, ijOutputId);
+		return idList.stream()
+					 .map(WindowManager::getImage)
+					 .filter(Objects::nonNull)
+					 .collect(Collectors.toList());
+	}
+
+
+	/**
+	 * Retrieves the list of ROIs from an image overlay.
+	 *
+	 * @param imp The image ROIs are linked to.
+	 *
+	 * @return See above.
+	 */
+	private static List<Roi> getOverlay(ImagePlus imp) {
+		Overlay overlay = imp.getOverlay();
+		List<Roi> ijRois = new ArrayList<>(0);
+		if (overlay != null) {
+			ijRois = new ArrayList<>(Arrays.asList(overlay.toArray()));
+		}
+		for (Roi roi : ijRois) roi.setImage(imp);
+		return ijRois;
+	}
+
+
+	/**
+	 * Converts ROIs from an image overlay to OMERO ROIs.
+	 *
+	 * @param imp      The image ROIs are linked to.
+	 * @param property The ROI property used to group shapes in OMERO.
+	 *
+	 * @return A list of OMERO ROIs.
+	 */
+	private static List<ROIWrapper> getROIsFromOverlay(ImagePlus imp, String property) {
+		List<ROIWrapper> rois = new ArrayList<>(0);
+		if (imp != null) {
+			List<Roi> ijRois = getOverlay(imp);
+			rois = ROIWrapper.fromImageJ(ijRois, property);
+		}
+
+		return rois;
+	}
+
+
+	/**
+	 * Saves ImageJ ROIs to a file.
+	 *
+	 * @param ijRois The ROIs.
+	 * @param path   The path to the file.
+	 */
+	private static void saveRoiFile(List<? extends Roi> ijRois, String path) {
+		try (ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(path)));
+			 DataOutputStream dos = new DataOutputStream(new BufferedOutputStream(zos))) {
+			RoiEncoder re = new RoiEncoder(dos);
+			for (int i = 0; i < ijRois.size(); i++) {
+				if (ijRois.get(i) != null) {
+					// WARNING: Prepending index does not ensure label is unique.
+					String label = i + "-" + ijRois.get(i).getName() + ".roi";
+					zos.putNextEntry(new ZipEntry(label));
+					re.write(ijRois.get(i));
+					dos.flush();
+				}
+			}
+		} catch (IOException e) {
+			IJ.error("Error while saving ROI file: " + e.getMessage());
+		}
+	}
+
+
+	/**
+	 * Initializes the ROI manager.
+	 */
 	private void initRoiManager() {
 		rm = RoiManager.getInstance2();
 		if (rm == null) rm = RoiManager.getRoiManager();
+		rm.setVisible(false);
 	}
 
 
+	/**
+	 * Initializes the Bio-Formats importer options.
+	 *
+	 * @return See above.
+	 *
+	 * @throws IOException If the importer options could not be initialized.
+	 */
+	private ImporterOptions initImporterOptions() throws IOException {
+		ImporterOptions options = new ImporterOptions();
+		options.setStackFormat(ImporterOptions.VIEW_HYPERSTACK);
+		options.setSwapDimensions(false);
+		options.setOpenAllSeries(false);
+		options.setSpecifyRanges(false);
+		options.setShowMetadata(false);
+		options.setShowOMEXML(false);
+		options.setShowROIs(loadROIs);
+		options.setCrop(false);
+		options.setSplitChannels(false);
+		options.setSplitFocalPlanes(false);
+		options.setSplitTimepoints(false);
+		return options;
+	}
+
+
+	/**
+	 * Sets the current state.
+	 *
+	 * @param text The text for the current state.
+	 */
 	private void setState(String text) {
 		if (progress != null) progress.setState(text);
 	}
 
 
+	/**
+	 * Sets the current progress.
+	 *
+	 * @param text The text for the current progress.
+	 */
 	private void setProgress(String text) {
 		if (progress != null) progress.setProgress(text);
 	}
 
 
+	/**
+	 * Signals the process is done.
+	 */
 	private void setDone() {
 		if (progress != null) progress.setDone();
 	}
@@ -113,8 +386,9 @@ public class OMEROBatchRunner extends Thread {
 	 */
 	@Override
 	public void run() {
+		boolean finished = false;
 		if (progress instanceof ProgressDialog) {
-			((ProgressDialog) progress).setVisible(true);
+			((Component) progress).setVisible(true);
 		}
 
 		try {
@@ -124,16 +398,16 @@ public class OMEROBatchRunner extends Thread {
 			}
 
 			if (inputOnOMERO) {
-				setState("Images recovery from OMERO...");
+				setState("Retrieving images from OMERO...");
 				DatasetWrapper dataset = client.getDataset(inputDatasetId);
 				List<ImageWrapper> images = dataset.getImages(client);
 				setState("Macro running...");
 				runMacro(images);
 			} else {
-				setState("Images recovery from input folder...");
-				List<String> images = getImagesFromDirectory(getDirectoryIn());
+				setState("Retrieving files from input folder...");
+				List<String> files = getFilesFromDirectory(directoryIn, recursive);
 				setState("Macro running...");
-				runMacroOnLocalImages(images);
+				runMacroOnLocalImages(files);
 			}
 			setProgress("");
 			uploadTables();
@@ -141,70 +415,79 @@ public class OMEROBatchRunner extends Thread {
 			if (!outputOnLocal) {
 				setState("Temporary directory deletion...");
 				if (!deleteTemp(directoryOut)) {
-					IJ.log("Temp directory may not be deleted.");
+					LOGGER.warning("Temp directory may not be deleted.");
 				}
 			}
+			finished = true;
 			setState("");
 			setDone();
-		} catch (Exception e3) {
+		} catch (NoSuchElementException | IOException | ServiceException | AccessException | ExecutionException e) {
+			finished = true;
 			setDone();
 			setProgress("Macro cancelled");
-			if (e3.getMessage() != null && e3.getMessage().equals("Macro cancelled")) {
+			if (e.getMessage() != null && "Macro cancelled".equals(e.getMessage())) {
 				IJ.run("Close");
 			}
-			IJ.error(e3.getMessage());
+			IJ.error(e.getMessage());
 		} finally {
+			if (!finished) {
+				setDone();
+				setProgress("An unexpected error occurred.");
+			}
 			if (listener != null) listener.onThreadFinished();
 		}
 	}
 
 
+	/**
+	 * Deletes all owned ROIs from an image on OMERO.
+	 *
+	 * @param image The image on OMERO.
+	 */
 	private void deleteROIs(ImageWrapper image) {
 		setState("ROIs deletion from OMERO");
 		try {
 			List<ROIWrapper> rois = image.getROIs(client);
 			for (ROIWrapper roi : rois) {
-				client.delete(roi);
+				if (roi.getOwner().getId() == client.getId()) {
+					client.delete(roi);
+				}
 			}
 		} catch (ExecutionException | OMEROServerError | ServiceException | AccessException exception) {
-			IJ.log(exception.getMessage());
+			LOGGER.warning(exception.getMessage());
 		} catch (InterruptedException e) {
-			IJ.log(e.getMessage());
+			LOGGER.warning(e.getMessage());
 			Thread.currentThread().interrupt();
 		}
 	}
 
 
-	private List<String> getImagesFromDirectory(String directory) {
-		//""" List all image's paths contained in a directory """
-		File dir = new File(directory);
-		File[] files = dir.listFiles();
-		if (files == null) files = new File[0];
-		List<String> pathsImagesIni = new ArrayList<>();
-		for (File value : files) {
-			String file = value.getAbsolutePath();
-			pathsImagesIni.add(file);
-		}
-		return pathsImagesIni;
-	}
-
-
-	private List<Roi> getIJRois(ImagePlus imp) {
-		List<Roi> ijRois = new ArrayList<>();
-		Overlay overlay = imp.getOverlay();
-		if (overlay != null) {
-			ijRois.addAll(Arrays.asList(overlay.toArray()));
-		}
-		ijRois.addAll(Arrays.asList(rm.getRoisAsArray()));
+	/**
+	 * Retrieves the list of ROIs from the ROI manager.
+	 *
+	 * @param imp The image ROIs are linked to.
+	 *
+	 * @return See above.
+	 */
+	private List<Roi> getManagedRois(ImagePlus imp) {
+		List<Roi> ijRois = new ArrayList<>(Arrays.asList(rm.getRoisAsArray()));
 		for (Roi roi : ijRois) roi.setImage(imp);
 		return ijRois;
 	}
 
 
-	private List<ROIWrapper> getRoisFromIJ(ImagePlus imp, String property) {
-		List<ROIWrapper> rois = new ArrayList<>();
+	/**
+	 * Converts ROIs from the ROI Manager to OMERO ROIs.
+	 *
+	 * @param imp      The image ROIs are linked to.
+	 * @param property The ROI property used to group shapes in OMERO.
+	 *
+	 * @return A list of OMERO ROIs.
+	 */
+	private List<ROIWrapper> getROIsFromManager(ImagePlus imp, String property) {
+		List<ROIWrapper> rois = new ArrayList<>(0);
 		if (imp != null) {
-			List<Roi> ijRois = getIJRois(imp);
+			List<Roi> ijRois = getManagedRois(imp);
 			rois = ROIWrapper.fromImageJ(ijRois, property);
 		}
 
@@ -212,13 +495,12 @@ public class OMEROBatchRunner extends Thread {
 	}
 
 
-	private String todayDate() {
-		return new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(new Date());
-	}
-
-
-	void runMacro(List<ImageWrapper> images) {
-		//""" Run a macro on images and save the result """
+	/**
+	 * Runs a macro on images from OMERO and saves the results.
+	 *
+	 * @param images List of images on OMERO.
+	 */
+	void runMacro(List<? extends ImageWrapper> images) {
 		String property = ROIWrapper.IJ_PROPERTY;
 		ij.WindowManager.closeAllWindows();
 		int index = 0;
@@ -229,105 +511,89 @@ public class OMEROBatchRunner extends Thread {
 			// Open image from OMERO
 			ImagePlus imp = openImage(image);
 			// If image could not be loaded, continue to next image.
-			if (imp == null) continue;
+			if (imp != null) {
+				// Initialize ROI Manager
+				initRoiManager();
 
-			// Initialize ROI Manager
-			initRoiManager();
+				// Load ROIs
+				if (loadROIs) loadROIs(image, imp, false);
 
-			// Load ROIs
-			if (loadROIs) loadROIs(image, imp);
+				imp.show();
 
-			// Define paths
-			String title = removeExtension(imp.getTitle());
+				// Analyse the image
+				script.setImage(imp);
+				script.run();
 
-			imp.show();
-
-			// Analyse the image
-			script.setImage(imp);
-			script.run();
-
-			imp.changes = false; // Prevent "Save Changes?" dialog
-			save(imp, inputImageId, title, property);
+				imp.changes = false; // Prevent "Save Changes?" dialog
+				save(imp, inputImageId, property);
+			}
 			closeWindows();
 			index++;
 		}
 	}
 
 
-	void runMacroOnLocalImages(List<String> images) throws IOException, FormatException {
-		//""" Run a macro on images from local computer and save the result """
+	/**
+	 * Runs a macro on local files and saves the results.
+	 *
+	 * @param files List of image files.
+	 *
+	 * @throws IOException A problem occurred reading a file.
+	 */
+	void runMacroOnLocalImages(Collection<String> files) throws IOException {
 		String property = ROIWrapper.IJ_PROPERTY;
 		WindowManager.closeAllWindows();
-		int index = 0;
-		for (String image : images) {
-			// Open the image
-			ImporterOptions options = new ImporterOptions();
-			options.setId(image);
-			options.setStackFormat(ImporterOptions.VIEW_HYPERSTACK);
-			options.setSwapDimensions(false);
-			options.setOpenAllSeries(false);
-			options.setSpecifyRanges(false);
-			options.setShowMetadata(false);
-			options.setShowOMEXML(false);
-			options.setShowROIs(true);
-			options.setCrop(false);
-			options.setSplitChannels(false);
-			options.setSplitFocalPlanes(false);
-			options.setSplitTimepoints(false);
 
-			ImportProcess process = new ImportProcess(options);
-			process.execute();
-			int n = process.getSeriesCount();
+		ImporterOptions options = initImporterOptions();
+		Map<String, Integer> imageFiles = getImagesFromFiles(files, options);
+		int nFile = 1;
+		for (Map.Entry<String, Integer> entry : imageFiles.entrySet()) {
+			int n = entry.getValue();
+			options.setId(entry.getKey());
 			for (int i = 0; i < n; i++) {
-				String msg = String.format("File %d/%d, image %d/%d", index + 1, images.size(), i, n);
+				String msg = String.format("File %d/%d, image %d/%d", nFile, imageFiles.size(), i + 1, n);
 				setProgress(msg);
 				options.setSeriesOn(i, true);
-				ImagePlus[] imps = BF.openImagePlus(options);
-				ImagePlus imp = imps[0];
-				imp.show();
+				try {
+					ImagePlus[] imps = BF.openImagePlus(options);
+					ImagePlus imp = imps[0];
+					imp.show();
 
-				// Initialize ROI Manager
-				initRoiManager();
+					// Initialize ROI Manager
+					initRoiManager();
 
-				// Remove extension from title
-				String title = removeExtension(imp.getTitle());
+					// Analyse the image
+					script.setImage(imp);
+					script.run();
 
-				// Analyse the image
-				script.setImage(imp);
-				script.run();
-
-				// Save and Close the various components
-				imp.changes = false; // Prevent "Save Changes?" dialog
-				save(imp, null, title, property);
+					// Save and Close the various components
+					imp.changes = false; // Prevent "Save Changes?" dialog
+					save(imp, null, property);
+				} catch (FormatException e) {
+					IJ.error(e.getMessage());
+				}
 				closeWindows();
 				options.setSeriesOn(i, false);
 			}
-			index++;
+			nFile++;
 		}
 	}
 
 
-	private String removeExtension(String title) {
-		if (title != null && title.matches("(.*)qptiff(.*)")) {
-			return title.replace(".qptiff", "_");
-		} else if (title != null) {
-			int index = title.lastIndexOf('.');
-			if (index == 0 || index == -1) {
-				return title;
-			} else {
-				return title.substring(0, index);
-			}
-		} else {
-			return null;
-		}
-	}
-
-
+	/**
+	 * Opens an image from OMERO.
+	 *
+	 * @param image An OMERO image.
+	 *
+	 * @return An ImagePlus.
+	 */
 	private ImagePlus openImage(ImageWrapper image) {
 		setState("Opening image from OMERO...");
 		ImagePlus imp = null;
 		try {
 			imp = image.toImagePlus(client);
+			// Store image "annotate" permissions as a property in the ImagePlus object
+			imp.setProp("Annotable", String.valueOf(image.canAnnotate()));
 		} catch (ExecutionException | ServiceException | AccessException e) {
 			IJ.error("Could not load image: " + e.getMessage());
 		}
@@ -335,102 +601,179 @@ public class OMEROBatchRunner extends Thread {
 	}
 
 
-	private void loadROIs(ImageWrapper image, ImagePlus imp) {
-		rm.reset(); // Reset ROI manager to clear previous ROIs
-		List<Roi> ijRois = new ArrayList<>();
+	/**
+	 * Loads ROIs from an image in OMERO into ImageJ.
+	 *
+	 * @param image     The OMERO image.
+	 * @param imp       The image in ImageJ ROIs should be linked to.
+	 * @param toOverlay Whether the ROIs should be loaded to the ROI Manager (false) or the overlay (true).
+	 */
+	private void loadROIs(ImageWrapper image, ImagePlus imp, boolean toOverlay) {
+		List<Roi> ijRois = new ArrayList<>(0);
 		try {
 			ijRois = ROIWrapper.toImageJ(image.getROIs(client));
 		} catch (ExecutionException | ServiceException | AccessException e) {
-			IJ.error("Could not import ROIs: " + e.getMessage());
+			IJ.error("Could not load ROIs: " + e.getMessage());
 		}
-		for (Roi ijRoi : ijRois) {
-			ijRoi.setImage(imp);
-			rm.addRoi(ijRoi);
+		if (toOverlay) {
+			Overlay overlay = imp.getOverlay();
+			if (overlay != null) {
+				overlay.clear();
+			} else {
+				overlay = new Overlay();
+			}
+			for (Roi ijRoi : ijRois) {
+				ijRoi.setImage(imp);
+				overlay.add(ijRoi, ijRoi.getName());
+			}
+		} else {
+			rm.reset(); // Reset ROI manager to clear previous ROIs
+			for (Roi ijRoi : ijRois) {
+				ijRoi.setImage(imp);
+				rm.addRoi(ijRoi);
+			}
 		}
 	}
 
 
-	private void save(ImagePlus imageInput, Long omeroInputId, String title, String property) {
-		int ijInputId = imageInput.getID();
+	/**
+	 * Saves the images, results and ROIs.
+	 *
+	 * @param inputImage   The input image in ImageJ.
+	 * @param omeroInputId The OMERO image input ID.
+	 * @param property     The ROI property used to group shapes in OMERO.
+	 */
+	private void save(ImagePlus inputImage, Long omeroInputId, String property) {
+		String inputTitle = removeExtension(inputImage.getTitle());
+
 		Long omeroOutputId = omeroInputId;
+		List<ImagePlus> outputs = getOutputImages(inputImage);
 
-		ImagePlus outputImage = WindowManager.getCurrentImage();
-		if (outputImage == null) {
-			outputImage = imageInput;
-		}
-		int ijOutputId = outputImage.getID();
+		ImagePlus outputImage = inputImage;
+		if (!outputs.isEmpty()) outputImage = outputs.get(0);
 
-		int[] imageIds = WindowManager.getIDList();
-		if (imageIds == null) {
-			imageIds = new int[0];
+		// If input image is expected as output for ROIs on OMERO but is not annotable, import it.
+		boolean annotable = Boolean.parseBoolean(inputImage.getProp("Annotable"));
+		boolean outputIsNotInput = !inputImage.equals(outputImage);
+		if (!outputOnOMERO || !saveROIs || annotable || outputIsNotInput) {
+			outputs.removeIf(inputImage::equals);
 		}
-		List<Integer> idList = Arrays.stream(imageIds).boxed().collect(Collectors.toList());
-		idList.removeIf(i -> i.equals(ijOutputId));
-		idList.add(0, ijOutputId);
-		idList.removeIf(i -> i.equals(ijInputId));
 
 		if (saveImage) {
-			List<Long> outputIds = new ArrayList<>();
-			if (idList.isEmpty()) IJ.error("Invalid choice: there is no new image.");
-			for (Integer id : idList) {
-				ImagePlus imp = WindowManager.getImage(id);
-				WindowManager.setTempCurrentImage(imp);
-				outputIds.addAll(saveImage(title));
-			}
-			if (!outputIds.isEmpty()) {
+			if (outputs.isEmpty()) LOGGER.info("Warning: there is no new image.");
+			List<Long> outputIds = new ArrayList<>(outputs.size());
+			outputs.forEach(imp -> outputIds.addAll(saveImage(imp, property)));
+			if (!outputIds.isEmpty() && outputIsNotInput) {
 				omeroOutputId = outputIds.get(0);
 			}
 		}
 
-		saveROIs(outputImage, omeroOutputId, title, property);
-		saveResults(outputImage, omeroOutputId, title, property);
-		saveLog(omeroOutputId, title);
+		if (saveROIs) {
+			if (!saveImage) saveOverlay(outputImage, omeroOutputId, inputTitle, property);
+			saveROIManager(outputImage, omeroOutputId, inputTitle, property);
+		}
+		if (saveResults) saveResults(outputImage, omeroOutputId, inputTitle, property);
+		if (saveLog) saveLog(omeroOutputId, inputTitle);
 
-		for (int id : imageIds) {
-			WindowManager.getImage(id).close();
+		for (ImagePlus imp : outputs) {
+			imp.changes = false;
+			imp.close();
 		}
 	}
 
 
-	private List<Long> saveImage(String title) {
-		List<Long> ids = new ArrayList<>();
-		if (saveImage) {
-			String path = directoryOut + File.separator + title + suffix + ".tif";
-			IJ.saveAs("TIFF", path);
-			if (outputOnOMERO) {
-				try {
-					setState("Import on OMERO...");
-					DatasetWrapper dataset = client.getDataset(outputDatasetId);
-					ids = dataset.importImage(client, path);
-				} catch (Exception e) {
-					IJ.error("Could not import image: " + e.getMessage());
+	/**
+	 * Saves an image.
+	 *
+	 * @param image    The image to save.
+	 * @param property The ROI property to group shapes in OMERO.
+	 *
+	 * @return The OMERO IDs of the (possibly) uploaded image. Should be empty or contain one value.
+	 */
+	private List<Long> saveImage(ImagePlus image, String property) {
+		List<Long> ids = new ArrayList<>(0);
+		String title = removeExtension(image.getTitle());
+		String path = directoryOut + File.separator + title + suffix + ".tif";
+		IJ.saveAsTiff(image, path);
+		if (outputOnOMERO) {
+			try {
+				setState("Import on OMERO...");
+				DatasetWrapper dataset = client.getDataset(outputDatasetId);
+				ids = dataset.importImage(client, path);
+				if (saveROIs && !ids.isEmpty()) {
+					saveOverlay(image, ids.get(0), title, property);
 				}
+			} catch (AccessException | ServiceException | OMEROServerError | ExecutionException e) {
+				IJ.error("Could not import image: " + e.getMessage());
 			}
 		}
 		return ids;
 	}
 
 
-	private void saveROIs(ImagePlus imp, Long imageId, String title, String property) {
-		// save of ROIs
-		if (saveROIs && outputOnLocal) {  //  local save
-			setState("Saving ROIs...");
-			rm.runCommand("Deselect"); // deselect ROIs to save them all
-			rm.runCommand("Save", directoryOut + File.separator + title + "_" + todayDate() + "_RoiSet.zip");
+	/**
+	 * Saves the ROIs from an image overlay in ImageJ.
+	 *
+	 * @param imp      The image.
+	 * @param imageId  The image ID on OMERO.
+	 * @param title    The image title used to name the file when saving locally.
+	 * @param property The ROI property used to group shapes on OMERO.
+	 */
+	private void saveOverlay(ImagePlus imp, Long imageId, String title, String property) {
+		if (outputOnLocal) {  //  local save
+			setState("Saving overlay ROIs...");
+			String path = directoryOut + File.separator + title + "_" + timestamp() + "_RoiSet.zip";
+			List<Roi> ijRois = getOverlay(imp);
+			saveRoiFile(ijRois, path);
 		}
-		if (saveROIs && outputOnOMERO && imageId != null) { // save on Omero
-			setState("Saving ROIs on OMERO...");
-			List<ROIWrapper> rois = getRoisFromIJ(imp, property);
+		if (outputOnOMERO && imageId != null) { // save on Omero
+			List<ROIWrapper> rois = getROIsFromOverlay(imp, property);
 			try {
 				ImageWrapper image = client.getImage(imageId);
 				if (clearROIs) {
 					deleteROIs(image);
 				}
+				setState("Saving overlay ROIs on OMERO...");
 				for (ROIWrapper roi : rois) {
 					roi.setImage(image);
 					image.saveROI(client, roi);
 				}
-				loadROIs(image, imp); // reload ROIs
+				loadROIs(image, imp, true); // reload ROIs
+			} catch (ServiceException | AccessException | ExecutionException e) {
+				IJ.error("Could not import overlay ROIs to OMERO: " + e.getMessage());
+			}
+		}
+	}
+
+
+	/**
+	 * Saves the ROIs from the ROI Manager (for an image).
+	 *
+	 * @param imp      The image.
+	 * @param imageId  The image ID on OMERO.
+	 * @param title    The image title used to name the file when saving locally.
+	 * @param property The ROI property used to group shapes on OMERO.
+	 */
+	private void saveROIManager(ImagePlus imp, Long imageId, String title, String property) {
+		if (outputOnLocal) {  //  local save
+			setState("Saving ROIs...");
+			String path = directoryOut + File.separator + title + "_" + timestamp() + "_RoiSet.zip";
+			List<Roi> ijRois = getManagedRois(imp);
+			saveRoiFile(ijRois, path);
+		}
+		if (outputOnOMERO && imageId != null) { // save on Omero
+			List<ROIWrapper> rois = getROIsFromManager(imp, property);
+			try {
+				ImageWrapper image = client.getImage(imageId);
+				if (clearROIs) {
+					deleteROIs(image);
+				}
+				setState("Saving ROIs on OMERO...");
+				for (ROIWrapper roi : rois) {
+					roi.setImage(image);
+					image.saveROI(client, roi);
+				}
+				loadROIs(image, imp, false); // reload ROIs
 			} catch (ServiceException | AccessException | ExecutionException e) {
 				IJ.error("Could not import ROIs to OMERO: " + e.getMessage());
 			}
@@ -438,51 +781,63 @@ public class OMEROBatchRunner extends Thread {
 	}
 
 
+	/**
+	 * Saves the results (linked to an image).
+	 *
+	 * @param imp      The image.
+	 * @param imageId  The image ID on OMERO.
+	 * @param title    The image title used to name the file when saving locally.
+	 * @param property The ROI property used to group shapes on OMERO.
+	 */
 	private void saveResults(ImagePlus imp, Long imageId, String title, String property) {
-		if (saveResults) {
-			String resultsName = null;
-			List<Roi> ijRois = getIJRois(imp);
-			setState("Saving results files...");
-			ResultsTable rt = ResultsTable.getResultsTable();
+		List<Roi> ijRois = getOverlay(imp);
+		ijRois.addAll(getManagedRois(imp));
+
+		setState("Saving results files...");
+		String[] candidates = WindowManager.getNonImageTitles();
+		List<ResultsTable> results = Arrays.stream(candidates)
+										   .map(ResultsTable::getResultsTable)
+										   .collect(Collectors.toList());
+		results.add(0, ResultsTable.getResultsTable());
+		Map<String, Boolean> processed = new HashMap<>(results.size());
+		for (ResultsTable rt : results) {
 			if (rt != null) {
-				resultsName = rt.getTitle();
-				String path = directoryOut + File.separator + resultsName + "_" + title + "_" + todayDate() + ".csv";
-				rt.save(path);
-				if (outputOnOMERO) {
-					appendTable(rt, imageId, ijRois, property);
-					uploadFile(imageId, path);
+				String name = rt.getTitle();
+				if (!Boolean.TRUE.equals(processed.get(name)) && rt.getHeadings().length > 0) {
+					String path = directoryOut + File.separator + name + "_" + title + "_" + timestamp() + ".csv";
+					rt.save(path);
+					if (outputOnOMERO) {
+						appendTable(rt, imageId, ijRois, property);
+						uploadFile(imageId, path);
+					}
+					rt.reset();
+					processed.put(name, true);
 				}
-				rt.reset();
-			}
-			String[] candidates = WindowManager.getNonImageTitles();
-			for (String candidate : candidates) {
-				rt = ResultsTable.getResultsTable(candidate);
-
-				// Skip if rt is null or if results already processed
-				if (rt == null || rt.getTitle().equals(resultsName)) continue;
-
-				String path = directoryOut + File.separator + candidate + "_" + title + "_" + todayDate() + ".csv";
-				rt.save(path);
-				if (outputOnOMERO) {
-					appendTable(rt, imageId, ijRois, property);
-					uploadFile(imageId, path);
-				}
-				rt.reset();
 			}
 		}
 	}
 
 
+	/**
+	 * Saves the log.
+	 *
+	 * @param imageId The image ID on OMERO.
+	 * @param title   The image title used to name the file when saving locally.
+	 */
 	private void saveLog(Long imageId, String title) {
-		if (saveLog) {
-			String path = directoryOut + File.separator + title + "_log.txt";
-			IJ.selectWindow("Log");
-			IJ.saveAs("txt", path);
-			if (outputOnOMERO) uploadFile(imageId, path);
-		}
+		String path = directoryOut + File.separator + title + "_log.txt";
+		IJ.selectWindow("Log");
+		IJ.saveAs("txt", path);
+		if (outputOnOMERO) uploadFile(imageId, path);
 	}
 
 
+	/**
+	 * Uploads a file to an image on OMERO.
+	 *
+	 * @param imageId The image ID on OMERO.
+	 * @param path    The path to the file.
+	 */
 	private void uploadFile(Long imageId, String path) {
 		if (imageId != null) {
 			try {
@@ -499,6 +854,14 @@ public class OMEROBatchRunner extends Thread {
 	}
 
 
+	/**
+	 * Adds the current results to the corresponding table.
+	 *
+	 * @param results  The results table.
+	 * @param imageId  The image ID on OMERO.
+	 * @param ijRois   The ROIs in ImageJ.
+	 * @param property The ROI property used to group shapes on OMERO.
+	 */
 	private void appendTable(ResultsTable results, Long imageId, List<Roi> ijRois, String property) {
 		String resultsName = results.getTitle();
 		TableWrapper table = tables.get(resultsName);
@@ -514,6 +877,9 @@ public class OMEROBatchRunner extends Thread {
 	}
 
 
+	/**
+	 * Upload the tables to OMERO.
+	 */
 	private void uploadTables() {
 		if (outputOnOMERO && saveResults) {
 			setState("Uploading tables...");
@@ -522,39 +888,30 @@ public class OMEROBatchRunner extends Thread {
 				for (Map.Entry<String, TableWrapper> entry : tables.entrySet()) {
 					String name = entry.getKey();
 					TableWrapper table = entry.getValue();
-					String timestamp = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(new Date());
 					String newName;
-					if (name == null || name.equals("")) newName = timestamp + "_" + table.getName();
-					else newName = timestamp + "_" + name;
+					if (name == null || name.isEmpty()) newName = timestamp() + "_" + table.getName();
+					else newName = timestamp() + "_" + name;
 					table.setName(newName);
 					project.addTable(client, table);
+					String path = directoryOut + File.separator + newName + ".csv";
+					table.saveAs(path, 'c');
+					project.addFile(client, new File(path));
 				}
 			} catch (ExecutionException | ServiceException | AccessException e) {
 				IJ.error("Could not save table: " + e.getMessage());
-			}
-		}
-	}
-
-
-	private boolean deleteTemp(String tmpDir) {
-		//""" Delete the local copy of temporary files and directory """
-		boolean deleted = true;
-		File dir = new File(tmpDir);
-		File[] entries = dir.listFiles();
-		if (entries != null) {
-			try {
-				for (File entry : entries) {
-					deleted &= Files.deleteIfExists(entry.toPath());
-				}
-				deleted &= Files.deleteIfExists(dir.toPath());
 			} catch (IOException e) {
-				IJ.error("Could not delete files: " + e.getMessage());
+				IJ.error("Could not save table as file: " + e.getMessage());
+			} catch (InterruptedException e) {
+				IJ.error("Could not upload CSV to project: " + e.getMessage());
+				Thread.currentThread().interrupt();
 			}
 		}
-		return deleted;
 	}
 
 
+	/**
+	 * Closes all open windows in ImageJ.
+	 */
 	private void closeWindows() {
 		for (Frame frame : WindowManager.getNonImageWindows()) {
 			if (frame instanceof TextWindow) {
@@ -716,8 +1073,13 @@ public class OMEROBatchRunner extends Thread {
 	}
 
 
-	public void addListener(BatchListener listener) {
+	public void setListener(BatchListener listener) {
 		this.listener = listener;
+	}
+
+
+	public void setRecursive(boolean recursive) {
+		this.recursive = recursive;
 	}
 
 }

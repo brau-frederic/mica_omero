@@ -4,8 +4,18 @@ import fr.igred.omero.Client;
 import fr.igred.omero.exception.ServiceException;
 import ij.Prefs;
 
-import javax.swing.*;
+import javax.swing.BorderFactory;
+import javax.swing.BoxLayout;
+import javax.swing.JButton;
+import javax.swing.JDialog;
+import javax.swing.JFormattedTextField;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JPasswordField;
+import javax.swing.JTextField;
 import java.awt.Container;
+import java.awt.Dimension;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -13,10 +23,10 @@ import java.text.NumberFormat;
 
 import static javax.swing.JOptionPane.showMessageDialog;
 
-
+/**
+ * Connection dialog for OMERO.
+ */
 public class OMEROConnectDialog extends JDialog implements ActionListener {
-
-	private final transient Client client;
 
 	private final JTextField hostField = new JTextField("");
 	private final JFormattedTextField portField = new JFormattedTextField(NumberFormat.getIntegerInstance());
@@ -24,22 +34,33 @@ public class OMEROConnectDialog extends JDialog implements ActionListener {
 	private final JPasswordField passwordField = new JPasswordField("");
 	private final JButton login = new JButton("Login");
 	private final JButton cancel = new JButton("Cancel");
-	private boolean cancelled;
+	private transient Client client;
+	private boolean cancelled = false;
 
 
-	public OMEROConnectDialog(Client client) {
+	/**
+	 * Creates a new dialog to connect the specified client, but does not display it.
+	 */
+	public OMEROConnectDialog() {
 		super();
-		this.setModal(true);
-		this.client = client;
-		this.setTitle("Connection to OMERO");
-		this.setSize(350, 200);
-		this.setLocationRelativeTo(null); // center the window
 
-		String host = Prefs.get("omero.host", "bioimage.france-bioinformatique.fr");
-		long port = Prefs.getInt("omero.port", 4064);
+		final int width = 350;
+		final int height = 200;
+
+		final String defaultHost = "bioimage.france-bioinformatique.fr";
+		final int defaultPort = 4064;
+
+		super.setModal(true);
+		super.setTitle("Connection to OMERO");
+		super.setSize(width, height);
+		super.setMinimumSize(new Dimension(width, height));
+		super.setLocationRelativeTo(null); // center the window
+
+		String host = Prefs.get("omero.host", defaultHost);
+		long port = Prefs.getInt("omero.port", defaultPort);
 		String username = Prefs.get("omero.user", "");
 
-		Container cp = this.getContentPane();
+		Container cp = super.getContentPane();
 		cp.setLayout(new BoxLayout(cp, BoxLayout.PAGE_AXIS));
 
 		JPanel panelInfo = new JPanel();
@@ -50,8 +71,8 @@ public class OMEROConnectDialog extends JDialog implements ActionListener {
 
 		JPanel panelInfo2 = new JPanel();
 		panelInfo2.setLayout(new GridLayout(4, 1, 0, 3));
-		panelInfo1.setBorder(BorderFactory.createEmptyBorder(15, 10, 5, 10));
-		panelInfo2.setBorder(BorderFactory.createEmptyBorder(15, 10, 5, 10));
+		panelInfo1.setBorder(BorderFactory.createEmptyBorder(10, 10, 5, 10));
+		panelInfo2.setBorder(BorderFactory.createEmptyBorder(10, 10, 5, 10));
 
 		JLabel hostLabel = new JLabel("Host:");
 		panelInfo1.add(hostLabel);
@@ -75,14 +96,26 @@ public class OMEROConnectDialog extends JDialog implements ActionListener {
 		JPanel buttons = new JPanel();
 		buttons.add(cancel);
 		buttons.add(login);
-		login.addActionListener(this);
-		cancel.addActionListener(this);
 
-		this.getRootPane().setDefaultButton(login);
 		panelInfo.add(panelInfo1);
 		panelInfo.add(panelInfo2);
 		cp.add(panelInfo);
 		cp.add(buttons);
+
+		super.getRootPane().setDefaultButton(login);
+		super.setVisible(false);
+	}
+
+
+	/**
+	 * Displays the login window and connects the client.
+	 *
+	 * @param c The client.
+	 */
+	public void connect(Client c) {
+		this.client = c;
+		login.addActionListener(this);
+		cancel.addActionListener(this);
 		this.setVisible(true);
 	}
 
@@ -110,17 +143,16 @@ public class OMEROConnectDialog extends JDialog implements ActionListener {
 			} catch (ServiceException e1) {
 				String errorValue = e1.getCause().getMessage();
 				String message = e1.getCause().getMessage();
-				if (errorValue.equals("Login credentials not valid")) {
+				if ("Login credentials not valid".equals(errorValue)) {
 					message = "Login credentials not valid";
-				} else if (errorValue
-						.equals("Can't resolve hostname " + host)) {
+				} else if (String.format("Can't resolve hostname %s", host).equals(errorValue)) {
 					message = "Hostname not valid";
 				}
 				showMessageDialog(null, message, "Error", JOptionPane.ERROR_MESSAGE);
 			} catch (RuntimeException e1) {
 				String errorValue = e1.getMessage();
 				String message = e1.getMessage();
-				if (errorValue.equals("Obtained null object proxy")) {
+				if ("Obtained null object proxy".equals(errorValue)) {
 					message = "Port not valid or no internet access";
 				}
 				showMessageDialog(null, message, "Error", JOptionPane.ERROR_MESSAGE);
@@ -132,6 +164,11 @@ public class OMEROConnectDialog extends JDialog implements ActionListener {
 	}
 
 
+	/**
+	 * Specifies if cancel button was chosen.
+	 *
+	 * @return True if cancel was pressed.
+	 */
 	public boolean wasCancelled() {
 		return cancelled;
 	}
