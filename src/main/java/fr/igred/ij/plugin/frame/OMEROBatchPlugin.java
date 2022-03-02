@@ -149,7 +149,7 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 		final Dimension smallHorizontal = new Dimension(20, 0);
 		final Dimension maxTextSize = new Dimension(300, 18);
 
-		super.setSize(new Dimension(640, 480));
+		super.setSize(minimumSize);
 		super.setMinimumSize(super.getSize());
 		super.setLocationRelativeTo(null);
 		super.addWindowListener(new ClientDisconnector());
@@ -763,6 +763,7 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 			labelLanguage.setText("Language: " + script.getLanguage());
 			labelArguments.setText("Arguments: " + script.getArguments());
 		}
+		repack();
 	}
 
 
