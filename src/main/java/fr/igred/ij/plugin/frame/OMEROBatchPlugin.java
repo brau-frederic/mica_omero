@@ -53,6 +53,9 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 
 	private static final String FORMAT = "%%-%ds (ID:%%%dd)";
 
+	// minimum window size
+	private final Dimension minimumSize = new Dimension(640, 480);
+
 	// connection management
 	private final JLabel connectionStatus = new JLabel("Disconnected");
 	private final JButton connect = new JButton("Connect");
@@ -131,9 +134,7 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 	 */
 	public OMEROBatchPlugin() {
 		super("OMERO Batch Plugin");
-
-		final int width = 640;
-		final int height = 480;
+		super.setMinimumSize(minimumSize);
 
 		final String projectName = "Project Name: ";
 		final String datasetName = "Dataset Name: ";
@@ -148,7 +149,7 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 		final Dimension smallHorizontal = new Dimension(20, 0);
 		final Dimension maxTextSize = new Dimension(300, 18);
 
-		super.setSize(width, height);
+		super.setSize(new Dimension(640, 480));
 		super.setMinimumSize(super.getSize());
 		super.setLocationRelativeTo(null);
 		super.addWindowListener(new ClientDisconnector());
@@ -375,12 +376,10 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 		panelInput.setMaximumSize(new Dimension(panelInput.getMaximumSize().width, panelInput.getHeight()));
 
 		macro1.setMaximumSize(new Dimension(macro1.getMaximumSize().width, macro1.getHeight()));
-		macro2.setMaximumSize(new Dimension(macro2.getMaximumSize().width, macro2i.getHeight()));
-		macro3.setMaximumSize(new Dimension(macro3.getMaximumSize().width, macroReturnLabel.getHeight()));
-		macro4.setPreferredSize(new Dimension(macro4.getPreferredSize().width, macro4i.getHeight()));
+		macro2.setMaximumSize(new Dimension(macro2.getMaximumSize().width, macro2.getHeight()));
+		macro3.setMaximumSize(new Dimension(macro3.getMaximumSize().width, macro3.getHeight()));
+		macro4.setPreferredSize(new Dimension(macro4.getPreferredSize().width, macro4.getHeight()));
 		panelMacro.setMaximumSize(new Dimension(panelMacro.getMaximumSize().width, panelMacro.getHeight()));
-
-		panelOutput.setMaximumSize(new Dimension(panelOutput.getMaximumSize().width, panelOutput.getHeight()));
 
 		labelLanguage.setText("");
 		labelArguments.setText("");
@@ -388,9 +387,8 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 		output3a.setVisible(false);
 		output3b.setVisible(false);
 
-		// Set initial minimum size
+		// Initial pack
 		super.pack();
-		super.setMinimumSize(super.getSize());
 	}
 
 
@@ -1163,13 +1161,24 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 	 * Repacks this window.
 	 */
 	private void repack() {
-		this.setMinimumSize(this.getSize());
+		Dimension size = this.getSize();
+		this.setMinimumSize(minimumSize);
 		this.pack();
-		this.setMinimumSize(this.getSize());
+
+		Dimension bestSize = this.getSize();
+		this.setSize(size);
+		int width = Math.max(size.width, bestSize.width);
+		this.setMinimumSize(new Dimension(width, bestSize.height));
+		this.pack();
+		this.setMinimumSize(bestSize);
 
 		Container inputPanel = input1b.getParent();
 		inputPanel.setMinimumSize(inputPanel.getPreferredSize());
 		inputPanel.setMaximumSize(new Dimension(inputPanel.getMaximumSize().width, inputPanel.getPreferredSize().height));
+
+		Container outputPanel = output2.getParent();
+		outputPanel.setMinimumSize(outputPanel.getPreferredSize());
+		outputPanel.setMaximumSize(new Dimension(outputPanel.getMaximumSize().width, outputPanel.getHeight()));
 	}
 
 
