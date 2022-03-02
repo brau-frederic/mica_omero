@@ -22,6 +22,7 @@ import loci.plugins.config.SpringUtilities;
 
 import javax.swing.*;
 import java.awt.Color;
+import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
@@ -88,7 +89,7 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 	private final JCheckBox checkROIs = new JCheckBox("ROIs");
 	private final JCheckBox checkLog = new JCheckBox("Log file");
 
-	private final JPanel output1 = new JPanel();
+	private final JPanel output2 = new JPanel();
 	private final JTextField suffix = new JTextField(10);
 
 	// Omero or local => checkbox
@@ -131,8 +132,8 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 	public OMEROBatchPlugin() {
 		super("OMERO Batch Plugin");
 
-		final int width = 720;
-		final int height = 640;
+		final int width = 640;
+		final int height = 480;
 
 		final String projectName = "Project Name: ";
 		final String datasetName = "Dataset Name: ";
@@ -238,7 +239,6 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 		panelInput.add(input1b);
 		panelInput.add(input1c);
 		panelInput.add(input2);
-		local.setSelected(true);
 		panelInput.setLayout(new BoxLayout(panelInput, BoxLayout.PAGE_AXIS));
 		panelInput.setBorder(BorderFactory.createTitledBorder("Input"));
 		super.add(panelInput);
@@ -258,54 +258,56 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 		argsBtn.addActionListener(e -> setArguments());
 
 		JPanel macro2 = new JPanel();
-		macro2.setLayout(new BoxLayout(macro2, BoxLayout.PAGE_AXIS));
+		JPanel macro2i = new JPanel();
+		macro2i.setLayout(new BoxLayout(macro2i, BoxLayout.PAGE_AXIS));
+		labelLanguage.setText("L");
+		labelArguments.setText("A");
 		labelLanguage.setFont(nameFont);
 		labelArguments.setFont(nameFont);
-		macro2.add(labelLanguage);
-		macro2.add(labelArguments);
+		macro2i.add(labelLanguage);
+		macro2i.add(labelArguments);
+		macro2.add(macro2i);
 
 		JPanel macro3 = new JPanel();
-		macro3.setLayout(new BoxLayout(macro3, BoxLayout.LINE_AXIS));
 		JLabel macroReturnLabel = new JLabel("The macro returns: ");
 		macro3.add(macroReturnLabel);
 
 		JPanel macro4 = new JPanel();
-		macro4.setLayout(new BoxLayout(macro4, BoxLayout.LINE_AXIS));
-		macro4.add(checkImage);
-		macro4.add(checkResults);
-		macro4.add(checkROIs);
-		macro4.add(checkLog);
+		JPanel macro4i = new JPanel();
+		macro4i.setLayout(new BoxLayout(macro4i, BoxLayout.LINE_AXIS));
+		macro4i.add(checkImage);
+		macro4i.add(checkResults);
+		macro4i.add(checkROIs);
+		macro4i.add(checkLog);
 		checkImage.addActionListener(this::updateOutput);
 		checkResults.addActionListener(this::updateOutput);
 		checkROIs.addActionListener(this::updateOutput);
 		checkLog.addActionListener(this::updateOutput);
+		macro4.add(macro4i);
 
 		//choice of the macro
 		JPanel panelMacro = new JPanel();
 		panelMacro.add(macro1);
 		panelMacro.add(macro2);
-		panelMacro.add(Box.createRigidArea(smallHorizontal));
 		panelMacro.add(macro3);
 		panelMacro.add(macro4);
 		panelMacro.setLayout(new BoxLayout(panelMacro, BoxLayout.PAGE_AXIS));
 		panelMacro.setBorder(BorderFactory.createTitledBorder("Macro"));
 		super.add(panelMacro);
 
-		JLabel labelExtension = new JLabel("Suffix of output files:");
-		labelExtension.setLabelFor(suffix);
-		suffix.setText("_macro");
-		output1.add(labelExtension);
-		output1.add(suffix);
-		output1.setVisible(false);
-
-		JPanel output2 = new JPanel();
+		JPanel output1 = new JPanel();
 		JLabel labelRecordOption = new JLabel("Where to save results:");
-		output2.add(labelRecordOption);
-		output2.add(onlineOutput);
-		output2.add(localOutput);
+		output1.add(labelRecordOption);
+		output1.add(onlineOutput);
+		output1.add(localOutput);
 		onlineOutput.addActionListener(this::updateOutput);
 		localOutput.addActionListener(this::updateOutput);
 
+		JLabel labelExtension = new JLabel("Suffix of output files:");
+		labelExtension.setLabelFor(suffix);
+		suffix.setText("_macro");
+		output2.add(labelExtension);
+		output2.add(suffix);
 
 		JLabel labelProjectOut = new JLabel(projectName);
 		JLabel labelDatasetOut = new JLabel(datasetName);
@@ -321,7 +323,6 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 		projectListOut.addItemListener(this::updateOutputProject);
 		datasetListOut.addItemListener(this::updateOutputDataset);
 		newDatasetBtn.addActionListener(this::createNewDataset);
-		output3a.setVisible(false);
 		projectListOut.setFont(listFont);
 		datasetListOut.setFont(listFont);
 
@@ -334,12 +335,11 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 		output3b.add(outputFolder);
 		output3b.add(directoryBtn);
 		directoryBtn.addActionListener(e -> chooseDirectory(outputFolder));
-		output3b.setVisible(false);
 
 		// choice of output
 		JPanel panelOutput = new JPanel();
-		panelOutput.add(output1);
 		panelOutput.add(output2);
+		panelOutput.add(output1);
 		panelOutput.add(output3a);
 		panelOutput.add(output3b);
 		panelOutput.setLayout(new BoxLayout(panelOutput, BoxLayout.PAGE_AXIS));
@@ -351,6 +351,46 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 		panelBtn.add(start);
 		start.addActionListener(this::start);
 		super.add(panelBtn);
+
+		// Adjust input panel sizes
+		input2.setVisible(false);
+		input1a.setVisible(true);
+		input1b.setVisible(true);
+		input1c.setVisible(true);
+		super.pack();
+
+		input1a.setMaximumSize(new Dimension(input1a.getMaximumSize().width, input1a.getHeight()));
+		input1b.setMaximumSize(new Dimension(input1b.getMaximumSize().width, input1b.getHeight()));
+		input1c.setMaximumSize(new Dimension(input1c.getMaximumSize().width, input1c.getHeight()));
+
+		local.setSelected(true);
+
+		// Adjust other panel sizes
+		super.pack();
+
+		panelWarning.setMaximumSize(new Dimension(panelWarning.getMaximumSize().width, warning.getHeight()));
+		connection.setMaximumSize(new Dimension(connection.getMaximumSize().width, connection.getHeight()));
+		source.setMaximumSize(new Dimension(connection.getMaximumSize().width, source.getHeight()));
+		input2.setMaximumSize(new Dimension(input2.getMaximumSize().width, input2.getHeight()));
+		panelInput.setMaximumSize(new Dimension(panelInput.getMaximumSize().width, panelInput.getHeight()));
+
+		macro1.setMaximumSize(new Dimension(macro1.getMaximumSize().width, macro1.getHeight()));
+		macro2.setMaximumSize(new Dimension(macro2.getMaximumSize().width, macro2i.getHeight()));
+		macro3.setMaximumSize(new Dimension(macro3.getMaximumSize().width, macroReturnLabel.getHeight()));
+		macro4.setPreferredSize(new Dimension(macro4.getPreferredSize().width, macro4i.getHeight()));
+		panelMacro.setMaximumSize(new Dimension(panelMacro.getMaximumSize().width, panelMacro.getHeight()));
+
+		panelOutput.setMaximumSize(new Dimension(panelOutput.getMaximumSize().width, panelOutput.getHeight()));
+
+		labelLanguage.setText("");
+		labelArguments.setText("");
+		output2.setVisible(false);
+		output3a.setVisible(false);
+		output3b.setVisible(false);
+
+		// Set initial minimum size
+		super.pack();
+		super.setMinimumSize(super.getSize());
 	}
 
 
@@ -400,7 +440,7 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 
 
 	/**
-	 * Shows a error window.
+	 * Shows an error window.
 	 *
 	 * @param message The error message.
 	 */
@@ -416,9 +456,9 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 	 */
 	private static void chooseDirectory(JTextField textField) {
 		String pref = textField.getName();
-		if(pref.isEmpty()) pref = "omero.batch." + Prefs.DIR_IMAGE;
+		if (pref.isEmpty()) pref = "omero.batch." + Prefs.DIR_IMAGE;
 		String previousDir = textField.getText();
-		if(previousDir.isEmpty()) previousDir = Prefs.get(pref, previousDir);
+		if (previousDir.isEmpty()) previousDir = Prefs.get(pref, previousDir);
 
 		JFileChooser outputChoice = new JFileChooser(previousDir);
 		outputChoice.setDialogTitle("Choose the directory");
@@ -703,7 +743,7 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 	private void chooseMacro() {
 		String pref = macro.getName().isEmpty() ? "omero.batch.macro" : macro.getName();
 		String previousMacro = macro.getText();
-		if(previousMacro.isEmpty()) {
+		if (previousMacro.isEmpty()) {
 			previousMacro = Prefs.get(pref, previousMacro);
 		}
 		JFileChooser macroChoice = new JFileChooser(previousMacro);
@@ -758,7 +798,7 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 	private boolean connect() {
 		final Color green = new Color(0, 153, 0);
 		boolean connected = false;
-		if(client == null) client = new Client();
+		if (client == null) client = new Client();
 		OMEROConnectDialog connectDialog = new OMEROConnectDialog();
 		connectDialog.connect(client);
 		if (!connectDialog.wasCancelled()) {
@@ -796,6 +836,7 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 			groupList.setSelectedIndex(index);
 			connected = true;
 		}
+		repack();
 		return connected;
 	}
 
@@ -814,6 +855,7 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 		disconnect.setVisible(false);
 		groupList.removeAllItems();
 		userList.removeAllItems();
+		repack();
 	}
 
 
@@ -939,7 +981,7 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 			onlineOutput.setSelected(outputOnline);
 		}
 
-		output1.setVisible(outputImage);
+		output2.setVisible(outputImage);
 		output3a.setVisible(outputOnline && (outputImage || outputResults));
 		datasetListOut.setVisible(outputOnline && outputImage);
 		newDatasetBtn.setVisible(outputOnline && outputImage);
@@ -947,6 +989,7 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 			projectListOut.setSelectedIndex(projectListIn.getSelectedIndex());
 		}
 		output3b.setVisible(outputLocal);
+		repack();
 	}
 
 
@@ -1120,10 +1163,13 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 	 * Repacks this window.
 	 */
 	private void repack() {
-		Dimension minSize = this.getMinimumSize();
 		this.setMinimumSize(this.getSize());
 		this.pack();
-		this.setMinimumSize(minSize);
+		this.setMinimumSize(this.getSize());
+
+		Container inputPanel = input1b.getParent();
+		inputPanel.setMinimumSize(inputPanel.getPreferredSize());
+		inputPanel.setMaximumSize(new Dimension(inputPanel.getMaximumSize().width, inputPanel.getPreferredSize().height));
 	}
 
 
@@ -1138,7 +1184,7 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 		public void windowClosing(WindowEvent e) {
 			super.windowClosing(e);
 			Client c = client;
-			if(c != null) c.disconnect();
+			if (c != null) c.disconnect();
 		}
 
 	}
