@@ -457,6 +457,8 @@ public class OMEROBatchRunner extends Thread {
 				setProgress("An unexpected error occurred.");
 			}
 			if (listener != null) listener.onThreadFinished();
+			rm.setVisible(true);
+			rm.close();
 		}
 	}
 
