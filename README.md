@@ -1,3 +1,5 @@
+[![DOI](https://img.shields.io/badge/DOI-10.12688%2Ff1000research.110385.1-GREEN)](https://doi.org/10.12688/f1000research.110385.1)
+
 # OMERO Batch Plugin
 
 An ImageJ plugin to run a script on a batch of images from/to OMERO.
