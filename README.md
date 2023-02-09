@@ -1,4 +1,4 @@
-[![DOI](https://img.shields.io/badge/DOI-10.12688%2Ff1000research.110385.1-GREEN)](https://doi.org/10.12688/f1000research.110385.1)
+[![DOI](https://img.shields.io/badge/DOI-10.12688%2Ff1000research.110385.2-GREEN)](https://doi.org/10.12688/f1000research.110385.2)
 
 # OMERO Batch Plugin
 
