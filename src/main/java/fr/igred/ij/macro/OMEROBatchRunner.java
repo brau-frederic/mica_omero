@@ -17,6 +17,8 @@
 package fr.igred.ij.macro;
 
 import fr.igred.ij.gui.ProgressDialog;
+import fr.igred.ij.io.BatchImage;
+import fr.igred.ij.io.ROIMode;
 import fr.igred.omero.Client;
 import fr.igred.omero.annotations.TableWrapper;
 import fr.igred.omero.exception.AccessException;
@@ -35,11 +37,6 @@ import ij.io.RoiEncoder;
 import ij.measure.ResultsTable;
 import ij.plugin.frame.RoiManager;
 import ij.text.TextWindow;
-import loci.formats.FileStitcher;
-import loci.formats.FormatException;
-import loci.plugins.BF;
-import loci.plugins.in.ImportProcess;
-import loci.plugins.in.ImporterOptions;
 
 import java.awt.Component;
 import java.awt.Frame;
@@ -54,12 +51,9 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Logger;
@@ -75,31 +69,27 @@ public class OMEROBatchRunner extends Thread {
 
 	private static final Logger LOGGER = Logger.getLogger(MethodHandles.lookup().lookupClass().getName());
 
-	private static final File[] EMPTY_FILE_ARRAY = new File[0];
 	private static final int[] EMPTY_INT_ARRAY = new int[0];
 
 	private static final Pattern TITLE_AFTER_EXT = Pattern.compile("\\w+\\s?\\[?([^\\[\\]]*)]?");
 
+	private final List<BatchImage> images;
 	private final ScriptRunner script;
 	private final Client client;
 	private final ProgressMonitor progress;
 
 	private final Map<String, TableWrapper> tables = new HashMap<>(5);
 
-	private boolean inputOnOMERO;
+	private boolean loadROIs;
 	private boolean saveImage;
 	private boolean saveROIs;
 	private boolean saveResults;
 	private boolean saveLog;
-	private boolean loadROIs;
 	private boolean clearROIs;
 	private boolean outputOnOMERO;
 	private boolean outputOnLocal;
-	private boolean recursive;
-	private long inputDatasetId;
 	private long outputDatasetId;
 	private long outputProjectId;
-	private String directoryIn;
 	private String directoryOut;
 	private String suffix;
 
@@ -107,17 +97,16 @@ public class OMEROBatchRunner extends Thread {
 
 	private BatchListener listener;
 
-
-	public OMEROBatchRunner(ScriptRunner script, Client client) {
-		this(script, client, new ProgressLog(LOGGER));
+	public OMEROBatchRunner(ScriptRunner script, List<BatchImage> images, Client client) {
+		this(script, images, client, new ProgressLog(LOGGER));
 	}
 
 
-	public OMEROBatchRunner(ScriptRunner script, Client client, ProgressMonitor progress) {
+	public OMEROBatchRunner(ScriptRunner script, List<BatchImage> images, Client client, ProgressMonitor progress) {
 		this.script = script;
+		this.images = new ArrayList<>(images);
 		this.client = client;
 		this.progress = progress;
-		this.directoryIn = "";
 		this.suffix = "";
 		this.directoryOut = null;
 		this.rm = null;
@@ -183,62 +172,6 @@ public class OMEROBatchRunner extends Thread {
 			}
 		}
 		return deleted;
-	}
-
-
-	/**
-	 * List all files contained in a directory
-	 *
-	 * @param directory The folder to process
-	 *
-	 * @return The list of images paths.
-	 */
-	private static List<String> getFilesFromDirectory(String directory, boolean recursive) {
-		File dir = new File(directory);
-		File[] files = dir.listFiles();
-		if (files == null) files = EMPTY_FILE_ARRAY;
-		List<String> paths = new ArrayList<>(files.length);
-		for (File file : files) {
-			String path = file.getAbsolutePath();
-			if (!file.isDirectory()) {
-				paths.add(path);
-			} else if (recursive) {
-				paths.addAll(getFilesFromDirectory(path, true));
-			}
-		}
-		return paths;
-	}
-
-
-	/**
-	 * Retrieves the images in a list of files using Bio-Formats.
-	 *
-	 * @param files   The list of files.
-	 * @param options The Bio-Formats importer options.
-	 *
-	 * @return A map containing the number of images for each file.
-	 */
-	private static Map<String, Integer> getImagesFromFiles(Collection<String> files, ImporterOptions options) {
-		List<String> used = new ArrayList<>(files.size());
-		Map<String, Integer> imageFiles = new LinkedHashMap<>(files.size());
-		for (String file : files) {
-			if (!used.contains(file)) {
-				// Open the image
-				options.setId(file);
-				ImportProcess process = new ImportProcess(options);
-				try {
-					process.execute();
-					int n = process.getSeriesCount();
-					FileStitcher fs = process.getFileStitcher();
-					if (fs != null) used = Arrays.asList(fs.getUsedFiles());
-					else used.add(file);
-					imageFiles.put(file, n);
-				} catch (IOException | FormatException e) {
-					LOGGER.info(e.getMessage());
-				}
-			}
-		}
-		return imageFiles;
 	}
 
 
@@ -343,30 +276,6 @@ public class OMEROBatchRunner extends Thread {
 
 
 	/**
-	 * Initializes the Bio-Formats importer options.
-	 *
-	 * @return See above.
-	 *
-	 * @throws IOException If the importer options could not be initialized.
-	 */
-	private ImporterOptions initImporterOptions() throws IOException {
-		ImporterOptions options = new ImporterOptions();
-		options.setStackFormat(ImporterOptions.VIEW_HYPERSTACK);
-		options.setSwapDimensions(false);
-		options.setOpenAllSeries(false);
-		options.setSpecifyRanges(false);
-		options.setShowMetadata(false);
-		options.setShowOMEXML(false);
-		options.setShowROIs(loadROIs);
-		options.setCrop(false);
-		options.setSplitChannels(false);
-		options.setSplitFocalPlanes(false);
-		options.setSplitTimepoints(false);
-		return options;
-	}
-
-
-	/**
 	 * Sets the current state.
 	 *
 	 * @param text The text for the current state.
@@ -418,18 +327,8 @@ public class OMEROBatchRunner extends Thread {
 				directoryOut = Files.createTempDirectory("Fiji_analysis").toString();
 			}
 
-			if (inputOnOMERO) {
-				setState("Retrieving images from OMERO...");
-				DatasetWrapper dataset = client.getDataset(inputDatasetId);
-				List<ImageWrapper> images = dataset.getImages(client);
-				setState("Macro running...");
-				runMacro(images);
-			} else {
-				setState("Retrieving files from input folder...");
-				List<String> files = getFilesFromDirectory(directoryIn, recursive);
-				setState("Macro running...");
-				runMacroOnLocalImages(files);
-			}
+			setState("Macro running...");
+			runMacro();
 			setProgress("");
 			uploadTables();
 
@@ -442,7 +341,7 @@ public class OMEROBatchRunner extends Thread {
 			finished = true;
 			setState("");
 			setDone();
-		} catch (NoSuchElementException | IOException | ServiceException | AccessException | ExecutionException e) {
+		} catch (IOException e) {
 			finished = true;
 			setDone();
 			setProgress("Macro cancelled");
@@ -519,31 +418,30 @@ public class OMEROBatchRunner extends Thread {
 
 
 	/**
-	 * Runs a macro on images from OMERO and saves the results.
-	 *
-	 * @param images List of images on OMERO.
+	 * Runs a macro on images and saves the results.
 	 */
-	void runMacro(List<? extends ImageWrapper> images) {
+	void runMacro() {
 		String property = ROIWrapper.IJ_PROPERTY;
 		WindowManager.closeAllWindows();
-		int index = 0;
-		for (ImageWrapper image : images) {
-			setProgress("Image " + (index + 1) + "/" + images.size());
-			long inputImageId = image.getId();
 
-			// Open image from OMERO
-			ImagePlus imp = openImage(image);
+		// Initialize ROI Manager
+		initRoiManager();
+		ROIMode roiMode = ROIMode.DO_NOT_LOAD;
+		if (loadROIs) {
+			roiMode = ROIMode.MANAGER;
+		}
+
+		int index = 0;
+		for (BatchImage image : images) {
+			setProgress("Image " + (index + 1) + "/" + images.size());
+			ImagePlus imp = image.getImagePlus(roiMode);
 			// If image could not be loaded, continue to next image.
 			if (imp != null) {
-				// Initialize ROI Manager
-				initRoiManager();
-
-				// Load ROIs
-				if (loadROIs) loadROIs(image, imp, false);
-
+				ImageWrapper imageWrapper = image.getImageWrapper();
+				Long inputImageId = imageWrapper != null ? imageWrapper.getId() : null;
 				imp.show();
 
-				// Analyse the image
+				// Process the image
 				script.setImage(imp);
 				script.run();
 
@@ -553,74 +451,6 @@ public class OMEROBatchRunner extends Thread {
 			closeWindows();
 			index++;
 		}
-	}
-
-
-	/**
-	 * Runs a macro on local files and saves the results.
-	 *
-	 * @param files List of image files.
-	 *
-	 * @throws IOException A problem occurred reading a file.
-	 */
-	void runMacroOnLocalImages(Collection<String> files) throws IOException {
-		String property = ROIWrapper.IJ_PROPERTY;
-		WindowManager.closeAllWindows();
-
-		ImporterOptions options = initImporterOptions();
-		Map<String, Integer> imageFiles = getImagesFromFiles(files, options);
-		int nFile = 1;
-		for (Map.Entry<String, Integer> entry : imageFiles.entrySet()) {
-			int n = entry.getValue();
-			options.setId(entry.getKey());
-			for (int i = 0; i < n; i++) {
-				String msg = String.format("File %d/%d, image %d/%d", nFile, imageFiles.size(), i + 1, n);
-				setProgress(msg);
-				options.setSeriesOn(i, true);
-				try {
-					ImagePlus[] imps = BF.openImagePlus(options);
-					ImagePlus imp = imps[0];
-					imp.show();
-
-					// Initialize ROI Manager
-					initRoiManager();
-
-					// Analyse the image
-					script.setImage(imp);
-					script.run();
-
-					// Save and Close the various components
-					imp.changes = false; // Prevent "Save Changes?" dialog
-					save(imp, null, property);
-				} catch (FormatException e) {
-					IJ.error(e.getMessage());
-				}
-				closeWindows();
-				options.setSeriesOn(i, false);
-			}
-			nFile++;
-		}
-	}
-
-
-	/**
-	 * Opens an image from OMERO.
-	 *
-	 * @param image An OMERO image.
-	 *
-	 * @return An ImagePlus.
-	 */
-	private ImagePlus openImage(ImageWrapper image) {
-		setState("Opening image from OMERO...");
-		ImagePlus imp = null;
-		try {
-			imp = image.toImagePlus(client);
-			// Store image "annotate" permissions as a property in the ImagePlus object
-			imp.setProp("Annotatable", String.valueOf(image.canAnnotate()));
-		} catch (ExecutionException | ServiceException | AccessException e) {
-			IJ.error("Could not load image: " + e.getMessage());
-		}
-		return imp;
 	}
 
 
@@ -965,16 +795,6 @@ public class OMEROBatchRunner extends Thread {
 	}
 
 
-	public long getInputDatasetId() {
-		return inputDatasetId;
-	}
-
-
-	public void setInputDatasetId(Long inputDatasetId) {
-		if (inputDatasetId != null) this.inputDatasetId = inputDatasetId;
-	}
-
-
 	public boolean shouldSaveROIs() {
 		return saveROIs;
 	}
@@ -992,16 +812,6 @@ public class OMEROBatchRunner extends Thread {
 
 	public void setSaveResults(boolean saveResults) {
 		this.saveResults = saveResults;
-	}
-
-
-	public boolean isInputOnOMERO() {
-		return inputOnOMERO;
-	}
-
-
-	public void setInputOnOMERO(boolean inputOnOMERO) {
-		this.inputOnOMERO = inputOnOMERO;
 	}
 
 
@@ -1032,16 +842,6 @@ public class OMEROBatchRunner extends Thread {
 
 	public void setClearROIS(boolean clearROIs) {
 		this.clearROIs = clearROIs;
-	}
-
-
-	public String getDirectoryIn() {
-		return directoryIn;
-	}
-
-
-	public void setDirectoryIn(String directoryIn) {
-		this.directoryIn = directoryIn;
 	}
 
 
@@ -1092,11 +892,6 @@ public class OMEROBatchRunner extends Thread {
 
 	public void setListener(BatchListener listener) {
 		this.listener = listener;
-	}
-
-
-	public void setRecursive(boolean recursive) {
-		this.recursive = recursive;
 	}
 
 }
