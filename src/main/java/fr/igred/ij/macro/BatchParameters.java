@@ -63,9 +63,9 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 /**
- * Runs a script over multiple images retrieved from local files or from OMERO.
+ * Holds the parameters to batch run scripts.
  */
-public class OMEROBatchRunner extends Thread {
+public class BatchParameters {
 
 	private static final Logger LOGGER = Logger.getLogger(MethodHandles.lookup().lookupClass().getName());
 
@@ -98,12 +98,12 @@ public class OMEROBatchRunner extends Thread {
 	private BatchListener listener;
 
 
-	public OMEROBatchRunner(ScriptRunner script, List<BatchImage> images, Client client) {
+	public BatchParameters(ScriptRunner script, List<BatchImage> images, Client client) {
 		this(script, images, client, new ProgressLog(LOGGER));
 	}
 
 
-	public OMEROBatchRunner(ScriptRunner script, List<BatchImage> images, Client client, ProgressMonitor progress) {
+	public BatchParameters(ScriptRunner script, List<BatchImage> images, Client client, ProgressMonitor progress) {
 		this.script = script;
 		this.images = new ArrayList<>(images);
 		this.client = client;
