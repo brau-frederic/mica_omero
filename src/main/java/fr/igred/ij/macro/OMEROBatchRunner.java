@@ -20,6 +20,7 @@ package fr.igred.ij.macro;
 import fr.igred.ij.gui.ProgressDialog;
 import fr.igred.ij.io.BatchImage;
 import fr.igred.ij.io.ROIMode;
+import fr.igred.omero.AnnotatableWrapper;
 import fr.igred.omero.Client;
 import fr.igred.omero.annotations.TableWrapper;
 import fr.igred.omero.exception.AccessException;
@@ -44,7 +45,9 @@ import java.awt.Frame;
 import java.io.BufferedOutputStream;
 import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.lang.invoke.MethodHandles;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -288,6 +291,40 @@ public class OMEROBatchRunner extends Thread {
 			}
 		} catch (IOException e) {
 			IJ.error("Error while saving ROI file: " + e.getMessage());
+		}
+	}
+
+
+	/**
+	 * Adds a timestamp to the table name.
+	 *
+	 * @param table The table.
+	 * @param name  The table name.
+	 */
+	private static String renameTable(TableWrapper table, String name) {
+		String newName;
+		if (name == null || name.isEmpty()) {
+			newName = timestamp() + "_" + table.getName();
+		} else {
+			newName = timestamp() + "_" + name;
+		}
+		table.setName(newName);
+		return newName;
+	}
+
+
+	/**
+	 * Saves a table as a text file.
+	 *
+	 * @param table The table.
+	 * @param path  The path to the file.
+	 */
+	private static void saveTable(TableWrapper table, String path) {
+		try {
+			//noinspection MagicCharacter
+			table.saveAs(path, '\t');
+		} catch (FileNotFoundException | UnsupportedEncodingException e) {
+			IJ.error("Could not save table as file: " + e.getMessage());
 		}
 	}
 
@@ -709,8 +746,8 @@ public class OMEROBatchRunner extends Thread {
 					rt.save(path);
 					if (params.isOutputOnOMERO()) {
 						appendTable(rt, imageId, ijRois, property);
-						uploadFile(imageId, path);
 					}
+					uploadFileToImage(imageId, path);
 					rt.reset();
 					processed.put(name, true);
 				}
@@ -729,9 +766,7 @@ public class OMEROBatchRunner extends Thread {
 		String path = params.getDirectoryOut() + File.separator + title + "_log.txt";
 		IJ.selectWindow("Log");
 		IJ.saveAs("txt", path);
-		if (params.isOutputOnOMERO()) {
-			uploadFile(imageId, path);
-		}
+		uploadFileToImage(imageId, path);
 	}
 
 
@@ -741,16 +776,34 @@ public class OMEROBatchRunner extends Thread {
 	 * @param imageId The image ID on OMERO.
 	 * @param path    The path to the file.
 	 */
-	private void uploadFile(Long imageId, String path) {
-		if (imageId != null) {
+	private void uploadFileToImage(Long imageId, String path) {
+		if (imageId != null && params.isOutputOnOMERO()) {
+			ImageWrapper image = null;
 			try {
 				setState("Uploading results files...");
-				ImageWrapper image = client.getImage(imageId);
-				image.addFile(client, new File(path));
+				image = client.getImage(imageId);
 			} catch (ExecutionException | ServiceException | AccessException e) {
-				IJ.error("Error adding file to image:" + e.getMessage());
+				IJ.error("Error retrieving image:" + e.getMessage());
+			}
+			uploadFile(image, path);
+		}
+	}
+
+
+	/**
+	 * Uploads a file to an annotatable object on OMERO.
+	 *
+	 * @param object The object on OMERO.
+	 * @param path   The path to the file.
+	 */
+	private void uploadFile(AnnotatableWrapper<?> object, String path) {
+		if (object != null && params.isOutputOnOMERO()) {
+			try {
+				object.addFile(client, new File(path));
+			} catch (ExecutionException e) {
+				IJ.error("Error adding file to object:" + e.getMessage());
 			} catch (InterruptedException e) {
-				IJ.error("Error adding file to image:" + e.getMessage());
+				IJ.error("Error adding file to object:" + e.getMessage());
 				Thread.currentThread().interrupt();
 			}
 		}
@@ -781,36 +834,44 @@ public class OMEROBatchRunner extends Thread {
 
 
 	/**
+	 * Uploads a table to a project, if required.
+	 *
+	 * @param project The project the table belongs to.
+	 * @param table   The table.
+	 */
+	private void uploadTable(ProjectWrapper project, TableWrapper table) {
+		if (project != null && params.isOutputOnOMERO()) {
+			try {
+				project.addTable(client, table);
+			} catch (ExecutionException | ServiceException | AccessException e) {
+				IJ.error("Could not upload table: " + e.getMessage());
+			}
+		}
+	}
+
+
+	/**
 	 * Upload the tables to OMERO.
 	 */
 	private void uploadTables() {
-		if (params.isOutputOnOMERO() && params.shouldSaveResults()) {
+		ProjectWrapper project = null;
+		if (params.shouldSaveResults()) {
 			setState("Uploading tables...");
-			try {
-				ProjectWrapper project = client.getProject(params.getOutputProjectId());
-				for (Map.Entry<String, TableWrapper> entry : tables.entrySet()) {
-					String name = entry.getKey();
-					TableWrapper table = entry.getValue();
-					String newName;
-					if (name == null || name.isEmpty()) {
-						newName = timestamp() + "_" + table.getName();
-					} else {
-						newName = timestamp() + "_" + name;
-					}
-					table.setName(newName);
-					project.addTable(client, table);
-					String path = params.getDirectoryOut() + File.separator +
-								  newName + ".csv";
-					table.saveAs(path, 'c');
-					project.addFile(client, new File(path));
+			if (params.isOutputOnOMERO()) {
+				try {
+					project = client.getProject(params.getOutputProjectId());
+				} catch (ExecutionException | ServiceException | AccessException e) {
+					IJ.error("Could not retrieve project: " + e.getMessage());
 				}
-			} catch (ExecutionException | ServiceException | AccessException e) {
-				IJ.error("Could not save table: " + e.getMessage());
-			} catch (IOException e) {
-				IJ.error("Could not save table as file: " + e.getMessage());
-			} catch (InterruptedException e) {
-				IJ.error("Could not upload CSV to project: " + e.getMessage());
-				Thread.currentThread().interrupt();
+			}
+			for (Map.Entry<String, TableWrapper> entry : tables.entrySet()) {
+				String name = entry.getKey();
+				TableWrapper table = entry.getValue();
+				String newName = renameTable(table, name);
+				uploadTable(project, table);
+				String path = params.getDirectoryOut() + File.separator + newName + ".csv";
+				saveTable(table, path);
+				uploadFile(project, path);
 			}
 		}
 	}
