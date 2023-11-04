@@ -16,104 +16,40 @@
  */
 package fr.igred.ij.io;
 
-import fr.igred.ij.gui.ProgressDialog;
-import fr.igred.omero.Client;
-import fr.igred.omero.annotations.TableWrapper;
-import fr.igred.omero.exception.AccessException;
-import fr.igred.omero.exception.OMEROServerError;
-import fr.igred.omero.exception.ServiceException;
-import fr.igred.omero.repository.DatasetWrapper;
 import fr.igred.omero.repository.ImageWrapper;
-import fr.igred.omero.repository.ProjectWrapper;
-import fr.igred.omero.roi.ROIWrapper;
-import ij.IJ;
 import ij.ImagePlus;
-import ij.WindowManager;
-import ij.gui.Overlay;
-import ij.gui.Roi;
-import ij.io.RoiEncoder;
-import ij.measure.ResultsTable;
 import ij.plugin.frame.RoiManager;
-import ij.text.TextWindow;
 import loci.formats.FileStitcher;
 import loci.formats.FormatException;
 import loci.plugins.BF;
 import loci.plugins.in.ImportProcess;
 import loci.plugins.in.ImporterOptions;
 
-import java.awt.Component;
-import java.awt.Frame;
-import java.io.BufferedOutputStream;
-import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
-import java.nio.file.Files;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Objects;
-import java.util.concurrent.ExecutionException;
 import java.util.logging.Logger;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 
 /**
- * Runs a script over multiple images retrieved from local files or from OMERO.
+ * Image stored in a local file.
  */
-public class OMEROBatchRunner extends Thread {
+public class LocalBatchImage implements BatchImage {
 
 	private static final Logger LOGGER = Logger.getLogger(MethodHandles.lookup().lookupClass().getName());
 
 	private static final File[] EMPTY_FILE_ARRAY = new File[0];
-	private static final int[] EMPTY_INT_ARRAY = new int[0];
-
-	private static final Pattern TITLE_AFTER_EXT = Pattern.compile("\\w+\\s?\\[?([^\\[\\]]*)]?");
-
-	private final ScriptRunner script;
-	private final Client client;
-	private final ProgressMonitor progress;
-
-	private final Map<String, TableWrapper> tables = new HashMap<>(5);
-
-	private boolean inputOnOMERO;
-	private boolean saveImage;
-	private boolean saveROIs;
-	private boolean saveResults;
-	private boolean saveLog;
-	private boolean loadROIs;
-	private boolean clearROIs;
-	private boolean outputOnOMERO;
-	private boolean outputOnLocal;
-	private boolean recursive;
-	private long inputDatasetId;
-	private long outputDatasetId;
-	private long outputProjectId;
-	private String directoryIn;
-	private String directoryOut;
-	private String suffix;
-
-	private RoiManager rm;
-
-	private BatchListener listener;
 
 
-	public OMEROBatchRunner(ScriptRunner script, Client client) {
+	public LocalBatchImage(ScriptRunner script, Client client) {
 		this(script, client, new ProgressLog(LOGGER));
 	}
 
 
-	public OMEROBatchRunner(ScriptRunner script, Client client, ProgressMonitor progress) {
+	public LocalBatchImage(ScriptRunner script, Client client, ProgressMonitor progress) {
 		this.script = script;
 		this.client = client;
 		this.progress = progress;
