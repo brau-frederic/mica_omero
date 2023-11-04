@@ -177,7 +177,9 @@ public class LocalBatchImage implements BatchImage {
 		try {
 			ImporterOptions options = initImporterOptions();
 			options.setShowROIs(loadROIs);
-			options.setROIsMode(mode.toString());
+			if (loadROIs) {
+				options.setROIsMode(mode.toString());
+			}
 			options.setId(path);
 			options.setSeriesOn(index, true);
 			ImagePlus[] imps = BF.openImagePlus(options);
