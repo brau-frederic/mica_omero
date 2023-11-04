@@ -744,9 +744,7 @@ public class OMEROBatchRunner extends Thread {
 								  title + "_" +
 								  timestamp() + ".csv";
 					rt.save(path);
-					if (params.isOutputOnOMERO()) {
-						appendTable(rt, imageId, ijRois, property);
-					}
+					appendTable(rt, imageId, ijRois, property);
 					uploadFileToImage(imageId, path);
 					rt.reset();
 					processed.put(name, true);
