@@ -376,11 +376,8 @@ public class OMEROBatchRunner extends Thread {
 		setState("ROIs deletion from OMERO");
 		try {
 			List<ROIWrapper> rois = image.getROIs(client);
-			for (ROIWrapper roi : rois) {
-				if (roi.getOwner().getId() == client.getId()) {
-					client.delete(roi);
-				}
-			}
+			rois.removeIf(roi -> roi.getOwner().getId() != client.getId());
+			client.delete(rois);
 		} catch (ExecutionException | OMEROServerError | ServiceException | AccessException exception) {
 			LOGGER.warning(exception.getMessage());
 		} catch (InterruptedException e) {
@@ -441,7 +438,9 @@ public class OMEROBatchRunner extends Thread {
 
 		int index = 0;
 		for (BatchImage image : images) {
+			//noinspection HardcodedFileSeparator
 			setProgress("Image " + (index + 1) + "/" + images.size());
+			setState("Opening image...");
 			ImagePlus imp = image.getImagePlus(roiMode);
 			// If image could not be loaded, continue to next image.
 			if (imp != null) {
@@ -450,6 +449,7 @@ public class OMEROBatchRunner extends Thread {
 				imp.show();
 
 				// Process the image
+				setState("Processing image...");
 				script.setImage(imp);
 				script.run();
 
@@ -515,8 +515,8 @@ public class OMEROBatchRunner extends Thread {
 			outputImage = outputs.get(0);
 		}
 
-		// If input image is expected as output for ROIs on OMERO but is not annotable, import it.
-		boolean annotatable = Boolean.parseBoolean(inputImage.getProp("Annotable"));
+		// If input image is expected as output for ROIs on OMERO but is not annotatable, import it.
+		boolean annotatable = Boolean.parseBoolean(inputImage.getProp("Annotatable"));
 		boolean outputIsNotInput = !inputImage.equals(outputImage);
 		if (!params.isOutputOnOMERO() || !params.shouldSaveROIs() || annotatable || outputIsNotInput) {
 			outputs.removeIf(inputImage::equals);

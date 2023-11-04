@@ -16,6 +16,7 @@
  */
 package fr.igred.ij.io;
 
+
 import fr.igred.omero.Client;
 import fr.igred.omero.exception.AccessException;
 import fr.igred.omero.exception.ServiceException;
@@ -33,6 +34,7 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+
 
 /**
  * Image from OMERO.
@@ -87,9 +89,7 @@ public class OMEROBatchImage implements BatchImage {
 			imp = imageWrapper.toImagePlus(client);
 			// Store image "annotate" permissions as a property in the ImagePlus object
 			imp.setProp("Annotatable", String.valueOf(imageWrapper.canAnnotate()));
-			if (imp != null) {
-				loadROIs(imp, mode);
-			}
+			loadROIs(imp, mode);
 		} catch (ExecutionException | ServiceException | AccessException e) {
 			LOGGER.severe("Could not load image: " + e.getMessage());
 		}
@@ -114,7 +114,7 @@ public class OMEROBatchImage implements BatchImage {
 		} catch (ExecutionException | ServiceException | AccessException e) {
 			LOGGER.severe("Could not load ROIs: " + e.getMessage());
 		}
-		if (roiMode == ROIMode.OVERLAY) {
+		if (roiMode == ROIMode.OVERLAY && imp != null) {
 			Overlay overlay = imp.getOverlay();
 			if (overlay != null) {
 				overlay.clear();
