@@ -18,6 +18,7 @@
  * This package contains interfaces and classes meant to handle input/output, most notably images:
  * <ul>
  *     <li>{@link fr.igred.ij.io.BatchImage} to generally handle images in batch</li>
+ *     <li>{@link fr.igred.ij.io.LocalBatchImage} to manage local images</li>
  * </ul>
  * It also contains {@link fr.igred.ij.io.ROIMode} to handle ROI loading.
  */
