@@ -47,9 +47,13 @@ import java.util.stream.Collectors;
  */
 public class ScriptRunner2 extends ScriptRunner {
 
+	/** Whether inputs were detected. */
 	private final boolean detectedInputs;
+	/** The inputs. */
 	protected Map<String, Object> inputs;
+	/** The script. */
 	private ScriptModule script;
+	/** The script language. */
 	private String language = "";
 
 

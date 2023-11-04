@@ -44,10 +44,10 @@ import java.awt.Frame;
 import java.io.BufferedOutputStream;
 import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -63,36 +63,66 @@ import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import static java.nio.file.Files.newOutputStream;
+
 
 /**
  * Runs a script over multiple images retrieved from local files or from OMERO.
  */
 public class OMEROBatchRunner extends Thread {
 
+	/** The logger. */
 	private static final Logger LOGGER = Logger.getLogger(MethodHandles.lookup().lookupClass().getName());
 
+	/** The empty int array. */
 	private static final int[] EMPTY_INT_ARRAY = new int[0];
 
+	/** The pattern to remove the file extension from an image title. */
 	private static final Pattern TITLE_AFTER_EXT = Pattern.compile("\\w+\\s?\\[?([^\\[\\]]*)]?");
 
+	/** The images. */
 	private final List<BatchImage> images;
+	/** The script. */
 	private final ScriptRunner script;
+	/** The OMERO client. */
 	private final Client client;
+	/** The progress monitor. */
 	private final ProgressMonitor progress;
+	/** The parameters. */
 	private final BatchParameters params;
 
+	/** The tables. */
 	private final Map<String, TableWrapper> tables = new HashMap<>(5);
 
+	/** The ROI manager. */
 	private RoiManager rm;
 
+	/** The listener. */
 	private BatchListener listener;
 
 
+	/**
+	 * Creates a new instance with the specified script, images and parameters.
+	 *
+	 * @param script The script.
+	 * @param images The images.
+	 * @param params The parameters.
+	 * @param client The OMERO client.
+	 */
 	public OMEROBatchRunner(ScriptRunner script, List<BatchImage> images, BatchParameters params, Client client) {
 		this(script, images, params, client, new ProgressLog(LOGGER));
 	}
 
 
+	/**
+	 * Creates a new instance with the specified script, images, parameters and progress monitor.
+	 *
+	 * @param script   The script.
+	 * @param images   The images.
+	 * @param params   The parameters.
+	 * @param client   The OMERO client.
+	 * @param progress The progress monitor.
+	 */
 	public OMEROBatchRunner(ScriptRunner script,
 							List<BatchImage> images,
 							BatchParameters params,
@@ -125,6 +155,7 @@ public class OMEROBatchRunner extends Thread {
 	 *
 	 * @return The title, without the extension.
 	 */
+	@SuppressWarnings("MagicCharacter")
 	private static String removeExtension(String title) {
 		if (title != null) {
 			int index = title.lastIndexOf('.');
@@ -243,7 +274,7 @@ public class OMEROBatchRunner extends Thread {
 	 * @param path   The path to the file.
 	 */
 	private static void saveRoiFile(List<? extends Roi> ijRois, String path) {
-		try (ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(path)));
+		try (ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(newOutputStream(Paths.get(path))));
 			 DataOutputStream dos = new DataOutputStream(new BufferedOutputStream(zos))) {
 			RoiEncoder re = new RoiEncoder(dos);
 			for (int i = 0; i < ijRois.size(); i++) {
@@ -308,10 +339,8 @@ public class OMEROBatchRunner extends Thread {
 
 
 	/**
-	 * If this thread was constructed using a separate
-	 * {@code Runnable} run object, then that
-	 * {@code Runnable} object's {@code run} method is called;
-	 * otherwise, this method does nothing and returns.
+	 * If this thread was constructed using a separate {@code Runnable} run object, then that {@code Runnable} object's
+	 * {@code run} method is called; otherwise, this method does nothing and returns.
 	 * <p>
 	 * Subclasses of {@code Thread} should override this method.
 	 *
@@ -522,7 +551,7 @@ public class OMEROBatchRunner extends Thread {
 			outputs.removeIf(inputImage::equals);
 		}
 
-		if (params.shouldSaveImage()) {
+		if (params.shouldSaveImages()) {
 			if (outputs.isEmpty()) {
 				LOGGER.info("Warning: there is no new image.");
 			}
@@ -534,7 +563,7 @@ public class OMEROBatchRunner extends Thread {
 		}
 
 		if (params.shouldSaveROIs()) {
-			if (!params.shouldSaveImage()) {
+			if (!params.shouldSaveImages()) {
 				saveOverlay(outputImage, omeroOutputId, inputTitle, property);
 			}
 			saveROIManager(outputImage, omeroOutputId, inputTitle, property);
@@ -801,11 +830,21 @@ public class OMEROBatchRunner extends Thread {
 	}
 
 
+	/**
+	 * Returns the client.
+	 *
+	 * @return See above.
+	 */
 	public Client getClient() {
 		return client;
 	}
 
 
+	/**
+	 * Sets the listener.
+	 *
+	 * @param listener The listener.
+	 */
 	public void setListener(BatchListener listener) {
 		this.listener = listener;
 	}

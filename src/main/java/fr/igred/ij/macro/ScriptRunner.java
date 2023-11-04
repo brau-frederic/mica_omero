@@ -27,7 +27,9 @@ import ij.gui.GenericDialog;
  */
 public class ScriptRunner {
 
+	/** The path to the macro. */
 	private final String path;
+	/** The arguments for the macro. */
 	private String arguments = "";
 
 
@@ -114,6 +116,7 @@ public class ScriptRunner {
 	 *
 	 * @return See above.
 	 */
+	@SuppressWarnings("MagicCharacter")
 	public String getLanguage() {
 		return path.substring(path.lastIndexOf('.'));
 	}

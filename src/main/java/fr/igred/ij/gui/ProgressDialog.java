@@ -34,8 +34,13 @@ import java.awt.Font;
  */
 public class ProgressDialog extends JFrame implements ProgressMonitor {
 
+	/** The progress label. */
 	private final JLabel progressLabel = new JLabel("", SwingConstants.CENTER);
+
+	/** The state label. */
 	private final JLabel stateLabel = new JLabel("", SwingConstants.CENTER);
+
+	/** The OK button. */
 	private final JButton ok = new JButton("OK");
 
 

@@ -40,14 +40,24 @@ import java.util.logging.Logger;
  */
 public class LocalBatchImage implements BatchImage {
 
+	/** The logger. */
 	private static final Logger LOGGER = Logger.getLogger(MethodHandles.lookup().lookupClass().getName());
 
+	/** Empty file array defined once. */
 	private static final File[] EMPTY_FILE_ARRAY = new File[0];
 
+	/** The path to the image. */
 	private final String path;
+	/** The image index. */
 	private final Integer index;
 
 
+	/**
+	 * Creates a new instance with the specified path and index.
+	 *
+	 * @param path  The path.
+	 * @param index The image index.
+	 */
 	public LocalBatchImage(String path, Integer index) {
 		this.path = path;
 		this.index = index;

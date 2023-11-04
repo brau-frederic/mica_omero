@@ -41,12 +41,21 @@ import java.util.stream.Collectors;
  */
 public class OMEROBatchImage implements BatchImage {
 
+	/** The logger. */
 	private static final Logger LOGGER = Logger.getLogger(MethodHandles.lookup().lookupClass().getName());
 
+	/** The OMERO client. */
 	private final Client client;
+	/** The OMERO image. */
 	private final ImageWrapper imageWrapper;
 
 
+	/**
+	 * Creates a new instance with the specified client and image.
+	 *
+	 * @param client       The OMERO client.
+	 * @param imageWrapper The OMERO image.
+	 */
 	public OMEROBatchImage(Client client, ImageWrapper imageWrapper) {
 		this.client = client;
 		this.imageWrapper = imageWrapper;

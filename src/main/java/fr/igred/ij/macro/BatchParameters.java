@@ -23,7 +23,7 @@ package fr.igred.ij.macro;
 public class BatchParameters {
 
 	private boolean loadROIs;
-	private boolean saveImage;
+	private boolean saveImages;
 	private boolean saveROIs;
 	private boolean saveResults;
 	private boolean saveLog;
@@ -36,9 +36,12 @@ public class BatchParameters {
 	private String suffix;
 
 
+	/**
+	 * Default constructor.
+	 */
 	public BatchParameters() {
 		this.loadROIs = false;
-		this.saveImage = false;
+		this.saveImages = false;
 		this.saveROIs = false;
 		this.saveResults = false;
 		this.saveLog = false;
@@ -52,9 +55,14 @@ public class BatchParameters {
 	}
 
 
+	/**
+	 * Copy constructor.
+	 *
+	 * @param parameters The parameters to copy.
+	 */
 	public BatchParameters(BatchParameters parameters) {
 		this.loadROIs = parameters.loadROIs;
-		this.saveImage = parameters.saveImage;
+		this.saveImages = parameters.saveImages;
 		this.saveROIs = parameters.saveROIs;
 		this.saveResults = parameters.saveResults;
 		this.saveLog = parameters.saveLog;
@@ -157,18 +165,18 @@ public class BatchParameters {
 	 *
 	 * @return See above.
 	 */
-	public boolean shouldSaveImage() {
-		return saveImage;
+	public boolean shouldSaveImages() {
+		return saveImages;
 	}
 
 
 	/**
 	 * Sets whether the images should be saved or not.
 	 *
-	 * @param saveImage See above.
+	 * @param saveImages See above.
 	 */
-	public void setSaveImage(boolean saveImage) {
-		this.saveImage = saveImage;
+	public void setSaveImages(boolean saveImages) {
+		this.saveImages = saveImages;
 	}
 
 

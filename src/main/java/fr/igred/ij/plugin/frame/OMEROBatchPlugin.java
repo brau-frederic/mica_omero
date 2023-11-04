@@ -71,20 +71,27 @@ import static javax.swing.JOptionPane.showMessageDialog;
  */
 public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 
+	/** The logger. */
 	private static final Logger LOGGER = Logger.getLogger(MethodHandles.lookup().lookupClass().getName());
 
+	/** The format used to display OMERO objects. */
 	private static final String FORMAT = "%%-%ds (ID:%%%dd)";
 
-	// minimum window size
+	/** The minimum window size */
 	private final Dimension minimumSize = new Dimension(640, 480);
 
 	// connection management
+	/** The connection status. */
 	private final JLabel connectionStatus = new JLabel("Disconnected");
+	/** The connection button. */
 	private final JButton connect = new JButton("Connect");
+	/** The disconnection button. */
 	private final JButton disconnect = new JButton("Disconnect");
 
 	// source selection
+	/** The OMERO input button. */
 	private final JRadioButton omero = new JRadioButton("OMERO");
+	/** The local input button. */
 	private final JRadioButton local = new JRadioButton("Local");
 
 	// choices of input images
@@ -94,60 +101,96 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 	private final JPanel input2 = new JPanel();
 
 	// group and user selection
+	/** The list of groups. */
 	private final JComboBox<String> groupList = new JComboBox<>();
+	/** The list of users. */
 	private final JComboBox<String> userList = new JComboBox<>();
 
 	// choice of the dataSet
+	/** The list of projects. */
 	private final JComboBox<String> projectListIn = new JComboBox<>();
+	/** The list of datasets. */
 	private final JComboBox<String> datasetListIn = new JComboBox<>();
-	private final JCheckBox checkDelROIs = new JCheckBox(" Clear ROIs each time ");
-	private final JCheckBox checkLoadROIs = new JCheckBox(" Load ROIs ");
+	/** The checkbox to delete ROIs. */
+	private final JCheckBox checkDelROIs = new JCheckBox("Clear ROIs each time");
+	/** The checkbox to load ROIs. */
+	private final JCheckBox checkLoadROIs = new JCheckBox("Load ROIs");
 
 	// choice of the record
+	/** The input folder. */
 	private final JTextField inputFolder = new JTextField(20);
+	/** The checkbox to analyse subfolders. */
 	private final JCheckBox recursive = new JCheckBox("Recursive");
+	/** The macro file. */
 	private final JTextField macro = new JTextField(20);
+	/** The macro language label. */
 	private final JLabel labelLanguage = new JLabel();
+	/** The macro arguments label. */
 	private final JLabel labelArguments = new JLabel();
+	/** The checkbox to save images. */
 	private final JCheckBox checkImage = new JCheckBox("New image(s)");
+	/** The checkbox to save results. */
 	private final JCheckBox checkResults = new JCheckBox("Results table(s)");
+	/** The checkbox to save ROIs. */
 	private final JCheckBox checkROIs = new JCheckBox("ROIs");
+	/** The checkbox to save the log. */
 	private final JCheckBox checkLog = new JCheckBox("Log file");
 
 	private final JPanel output2 = new JPanel();
+	/** The suffix of the output files. */
 	private final JTextField suffix = new JTextField(10);
 
 	// Omero or local => checkbox
+	/** The checkbox to save to OMERO. */
 	private final JCheckBox onlineOutput = new JCheckBox("OMERO");
+	/** The checkbox to save locally. */
 	private final JCheckBox localOutput = new JCheckBox("Local");
 
 	// existing dataset
 	private final JPanel output3a = new JPanel();
+	/** The list of possible output projects. */
 	private final JComboBox<String> projectListOut = new JComboBox<>();
+	/** The list of possible output datasets. */
 	private final JComboBox<String> datasetListOut = new JComboBox<>();
+	/** The button to create a new dataset. */
 	private final JButton newDatasetBtn = new JButton("New");
 
 	// local
 	private final JPanel output3b = new JPanel();
+	/** The output folder. */
 	private final JTextField outputFolder = new JTextField(20);
 
-	// start button
+	/** The start button. */
 	private final JButton start = new JButton("Start");
 
 	//variables to keep
+	/** The OMERO client. */
 	private transient Client client;
+	/** The script runner. */
 	private transient ScriptRunner script;
+	/** The groups. */
 	private transient List<GroupWrapper> groups;
+	/** The group projects. */
 	private transient List<ProjectWrapper> groupProjects;
+	/** The selected user's projects. */
 	private transient List<ProjectWrapper> userProjects;
+	/** The datasets. */
 	private transient List<DatasetWrapper> datasets;
+	/** The current user's projects. */
 	private transient List<ProjectWrapper> myProjects;
+	/** The current user's datasets. */
 	private transient List<DatasetWrapper> myDatasets;
+	/** The users. */
 	private transient List<ExperimenterWrapper> users;
+	/** The current user. */
 	private transient ExperimenterWrapper exp;
+	/** The output directory. */
 	private String directoryOut = null;
+	/** The input directory. */
 	private String directoryIn = null;
+	/** The output dataset ID. */
 	private Long outputDatasetId = null;
+	/** The output project ID. */
 	private Long outputProjectId = null;
 
 
@@ -957,7 +1000,7 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 		params.setSuffix(suffix.getText());
 		params.setLoadROIS(checkLoadROIs.isSelected());
 		params.setClearROIS(checkDelROIs.isSelected());
-		params.setSaveImage(checkImage.isSelected());
+		params.setSaveImages(checkImage.isSelected());
 		params.setSaveResults(checkResults.isSelected());
 		params.setSaveROIs(checkROIs.isSelected());
 		params.setSaveLog(checkLog.isSelected());
@@ -1243,7 +1286,9 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 		public void windowClosing(WindowEvent e) {
 			super.windowClosing(e);
 			Client c = client;
-			if (c != null) c.disconnect();
+			if (c != null) {
+				c.disconnect();
+			}
 		}
 
 	}
