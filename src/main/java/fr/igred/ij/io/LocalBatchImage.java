@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2021-2022 MICA & GReD
+ *  Copyright (C) 2021-2023 MICA & GReD
  *
  * This program is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free Software
@@ -46,7 +46,7 @@ public class LocalBatchImage implements BatchImage {
 	private final Integer index;
 
 
-	public LocalBatchImage(String path, Integer index, boolean loadROIs) {
+	public LocalBatchImage(String path, Integer index) {
 		this.path = path;
 		this.index = index;
 	}
@@ -60,17 +60,15 @@ public class LocalBatchImage implements BatchImage {
 	 *
 	 * @return The list of file paths.
 	 */
-	private static List<String> getFilesFromDirectory(String directory, boolean recursive) {
-		File dir = new File(directory);
-		File[] files = dir.listFiles();
+	private static List<String> listFiles(File directory, boolean recursive) {
+		File[] files = directory.listFiles();
 		if (files == null) files = EMPTY_FILE_ARRAY;
 		List<String> paths = new ArrayList<>(files.length);
 		for (File file : files) {
-			String path = file.getAbsolutePath();
 			if (!file.isDirectory()) {
-				paths.add(path);
+				paths.add(file.getAbsolutePath());
 			} else if (recursive) {
-				paths.addAll(getFilesFromDirectory(path, true));
+				paths.addAll(listFiles(file, true));
 			}
 		}
 		return paths;
@@ -78,16 +76,21 @@ public class LocalBatchImage implements BatchImage {
 
 
 	/**
-	 * Retrieves the images in a list of files using Bio-Formats.
+	 * Creates a list of images to be opened, contained in the specified directory.
 	 *
-	 * @param files   The list of files.
-	 * @param options The Bio-Formats importer options.
+	 * @param directory The directory.
+	 * @param recursive Whether files should be listed recursively.
 	 *
 	 * @return The list of images.
+	 *
+	 * @throws IOException ImporterOptions could not be instantiated.
 	 */
-	private static List<BatchImage> getImagesFromFiles(Collection<String> files, ImporterOptions options) {
+	public static List<BatchImage> listImages(String directory, boolean recursive) throws IOException {
+		ImporterOptions options = initImporterOptions();
+		List<BatchImage> batchImages = new LinkedList<>();
+		File dir = new File(directory);
+		List<String> files = listFiles(dir, recursive);
 		List<String> used = new ArrayList<>(files.size());
-		Map<String, Integer> imageFiles = new LinkedHashMap<>(files.size());
 		for (String file : files) {
 			if (!used.contains(file)) {
 				// Open the image
@@ -99,13 +102,15 @@ public class LocalBatchImage implements BatchImage {
 					FileStitcher fs = process.getFileStitcher();
 					if (fs != null) used = Arrays.asList(fs.getUsedFiles());
 					else used.add(file);
-					imageFiles.put(file, n);
+					for (int i = 0; i < n; i++) {
+						batchImages.add(new LocalBatchImage(file, i));
+					}
 				} catch (IOException | FormatException e) {
-					LOGGER.info(e.getMessage());
+					LOGGER.severe(e.getMessage());
 				}
 			}
 		}
-		return imageFiles;
+		return batchImages;
 	}
 
 
@@ -144,49 +149,26 @@ public class LocalBatchImage implements BatchImage {
 
 
 	/**
-	 * Runs a macro on local files and saves the results.
+	 * Opens the image and returns the corresponding ImagePlus.
 	 *
-	 * @param files List of image files.
-	 *
-	 * @throws IOException A problem occurred reading a file.
+	 * @return See above.
 	 */
-	void runMacroOnLocalImages(Collection<String> files) throws IOException {
-		String property = ROIWrapper.IJ_PROPERTY;
-		WindowManager.closeAllWindows();
-
-		ImporterOptions options = initImporterOptions();
-		Map<String, Integer> imageFiles = getImagesFromFiles(files, options);
-		int nFile = 1;
-		for (Map.Entry<String, Integer> entry : imageFiles.entrySet()) {
-			int n = entry.getValue();
-			options.setId(entry.getKey());
-			for (int i = 0; i < n; i++) {
-				String msg = String.format("File %d/%d, image %d/%d", nFile, imageFiles.size(), i + 1, n);
-				setProgress(msg);
-				options.setSeriesOn(i, true);
-				try {
-					ImagePlus[] imps = BF.openImagePlus(options);
-					ImagePlus imp = imps[0];
-					imp.show();
-
-					// Initialize ROI Manager
-					initRoiManager();
-
-					// Analyse the image
-					script.setImage(imp);
-					script.run();
-
-					// Save and Close the various components
-					imp.changes = false; // Prevent "Save Changes?" dialog
-					save(imp, null, property);
-				} catch (FormatException e) {
-					IJ.error(e.getMessage());
-				}
-				closeWindows();
-				options.setSeriesOn(i, false);
-			}
-			nFile++;
+	@Override
+	public ImagePlus getImagePlus(ROIMode mode) {
+		ImagePlus imp = null;
+		boolean loadROIs = !mode.toString().isEmpty();
+		try {
+			ImporterOptions options = initImporterOptions();
+			options.setShowROIs(loadROIs);
+			options.setROIsMode(mode.toString());
+			options.setId(path);
+			options.setSeriesOn(index, true);
+			ImagePlus[] imps = BF.openImagePlus(options);
+			imp = imps[0];
+		} catch (FormatException | IOException e) {
+			LOGGER.severe(e.getMessage());
 		}
+		return imp;
 	}
 
 }
