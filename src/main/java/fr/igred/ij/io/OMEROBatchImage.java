@@ -14,7 +14,7 @@
  * this program; if not, write to the Free Software Foundation, Inc., 51 Franklin
  * Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
-package fr.igred.ij.macro;
+package fr.igred.ij.io;
 
 import fr.igred.ij.gui.ProgressDialog;
 import fr.igred.omero.Client;
