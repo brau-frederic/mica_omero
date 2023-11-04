@@ -52,6 +52,30 @@ public class OMEROBatchImage implements BatchImage {
 
 
 	/**
+	 * Creates a list of OMERO images to be opened.
+	 *
+	 * @param client The OMERO client.
+	 * @param images The list of ImageWrappers.
+	 *
+	 * @return The list of images.
+	 */
+	public static List<BatchImage> listImages(Client client, Collection<? extends ImageWrapper> images) {
+		return images.stream().map(i -> new OMEROBatchImage(client, i)).collect(Collectors.toList());
+	}
+
+
+	/**
+	 * Returns the related ImageWrapper, or null if there is none.
+	 *
+	 * @return See above.
+	 */
+	@Override
+	public ImageWrapper getImageWrapper() {
+		return imageWrapper;
+	}
+
+
+	/**
 	 * Opens the image and returns the corresponding ImagePlus.
 	 *
 	 * @return See above.
@@ -63,6 +87,7 @@ public class OMEROBatchImage implements BatchImage {
 			imp = imageWrapper.toImagePlus(client);
 			// Store image "annotate" permissions as a property in the ImagePlus object
 			imp.setProp("Annotatable", String.valueOf(imageWrapper.canAnnotate()));
+			loadROIs(imp, mode);
 		} catch (ExecutionException | ServiceException | AccessException e) {
 			LOGGER.severe("Could not load image: " + e.getMessage());
 		}
@@ -73,18 +98,21 @@ public class OMEROBatchImage implements BatchImage {
 	/**
 	 * Loads ROIs from an image in OMERO into ImageJ.
 	 *
-	 * @param image     The OMERO image.
-	 * @param imp       The image in ImageJ ROIs should be linked to.
-	 * @param toOverlay Whether the ROIs should be loaded to the ROI Manager (false) or the overlay (true).
+	 * @param imp     The image in ImageJ ROIs should be linked to.
+	 * @param roiMode The mode used to load ROIs.
 	 */
-	private void loadROIs(ImageWrapper image, ImagePlus imp, boolean toOverlay) {
+	private void loadROIs(ImagePlus imp, ROIMode roiMode) {
 		List<Roi> ijRois = new ArrayList<>(0);
+		RoiManager rm = RoiManager.getInstance2();
+		if (rm == null) {
+			rm = RoiManager.getRoiManager();
+		}
 		try {
-			ijRois = ROIWrapper.toImageJ(image.getROIs(client));
+			ijRois = ROIWrapper.toImageJ(imageWrapper.getROIs(client));
 		} catch (ExecutionException | ServiceException | AccessException e) {
 			LOGGER.severe("Could not load ROIs: " + e.getMessage());
 		}
-		if (toOverlay) {
+		if (roiMode == ROIMode.OVERLAY) {
 			Overlay overlay = imp.getOverlay();
 			if (overlay != null) {
 				overlay.clear();
@@ -95,7 +123,7 @@ public class OMEROBatchImage implements BatchImage {
 				ijRoi.setImage(imp);
 				overlay.add(ijRoi, ijRoi.getName());
 			}
-		} else {
+		} else if (rm != null) {
 			rm.reset(); // Reset ROI manager to clear previous ROIs
 			for (Roi ijRoi : ijRois) {
 				ijRoi.setImage(imp);
