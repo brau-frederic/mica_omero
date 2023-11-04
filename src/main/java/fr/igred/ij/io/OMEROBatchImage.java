@@ -42,34 +42,29 @@ public class OMEROBatchImage implements BatchImage {
 	private static final Logger LOGGER = Logger.getLogger(MethodHandles.lookup().lookupClass().getName());
 
 	private final Client client;
+	private final ImageWrapper imageWrapper;
 
-	public OMEROBatchImage(ScriptRunner script, Client client) {
+
+	public OMEROBatchImage(Client client, ImageWrapper imageWrapper) {
 		this.client = client;
-		this.progress = progress;
-		this.directoryIn = "";
-		this.suffix = "";
-		this.directoryOut = null;
-		this.rm = null;
-		this.listener = null;
+		this.imageWrapper = imageWrapper;
 	}
 
 
 	/**
-	 * Opens an image from OMERO.
+	 * Opens the image and returns the corresponding ImagePlus.
 	 *
-	 * @param image An OMERO image.
-	 *
-	 * @return An ImagePlus.
+	 * @return See above.
 	 */
-	private ImagePlus openImage(ImageWrapper image) {
-		setState("Opening image from OMERO...");
+	@Override
+	public ImagePlus getImagePlus(ROIMode mode) {
 		ImagePlus imp = null;
 		try {
-			imp = image.toImagePlus(client);
+			imp = imageWrapper.toImagePlus(client);
 			// Store image "annotate" permissions as a property in the ImagePlus object
-			imp.setProp("Annotatable", String.valueOf(image.canAnnotate()));
+			imp.setProp("Annotatable", String.valueOf(imageWrapper.canAnnotate()));
 		} catch (ExecutionException | ServiceException | AccessException e) {
-			IJ.error("Could not load image: " + e.getMessage());
+			LOGGER.severe("Could not load image: " + e.getMessage());
 		}
 		return imp;
 	}
@@ -87,7 +82,7 @@ public class OMEROBatchImage implements BatchImage {
 		try {
 			ijRois = ROIWrapper.toImageJ(image.getROIs(client));
 		} catch (ExecutionException | ServiceException | AccessException e) {
-			IJ.error("Could not load ROIs: " + e.getMessage());
+			LOGGER.severe("Could not load ROIs: " + e.getMessage());
 		}
 		if (toOverlay) {
 			Overlay overlay = imp.getOverlay();
