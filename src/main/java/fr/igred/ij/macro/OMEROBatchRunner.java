@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2021-2022 MICA & GReD
+ *  Copyright (C) 2021-2023 MICA & GReD
  *
  * This program is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free Software
@@ -97,6 +97,7 @@ public class OMEROBatchRunner extends Thread {
 
 	private BatchListener listener;
 
+
 	public OMEROBatchRunner(ScriptRunner script, List<BatchImage> images, Client client) {
 		this(script, images, client, new ProgressLog(LOGGER));
 	}
@@ -139,7 +140,7 @@ public class OMEROBatchRunner extends Thread {
 			} else {
 				String afterExt = TITLE_AFTER_EXT.matcher(title.substring(index + 1)).replaceAll("$1");
 				String beforeExt = title.substring(0, index);
-				if(beforeExt.toLowerCase().endsWith(".ome") && beforeExt.lastIndexOf('.') > 0) {
+				if (beforeExt.toLowerCase().endsWith(".ome") && beforeExt.lastIndexOf('.') > 0) {
 					beforeExt = beforeExt.substring(0, beforeExt.lastIndexOf('.'));
 				}
 				return afterExt.isEmpty() ? beforeExt : beforeExt + "_" + afterExt;

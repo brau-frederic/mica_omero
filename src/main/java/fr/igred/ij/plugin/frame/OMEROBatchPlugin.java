@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2021-2022 MICA & GReD
+ *  Copyright (C) 2021-2023 MICA & GReD
  *
  * This program is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free Software
@@ -18,6 +18,7 @@ package fr.igred.ij.plugin.frame;
 
 import fr.igred.ij.gui.OMEROConnectDialog;
 import fr.igred.ij.gui.ProgressDialog;
+import fr.igred.ij.io.BatchImage;
 import fr.igred.ij.macro.BatchListener;
 import fr.igred.ij.macro.OMEROBatchRunner;
 import fr.igred.ij.macro.ScriptRunner;
@@ -58,6 +59,8 @@ import java.util.function.Function;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+import static fr.igred.ij.io.LocalBatchImage.listImages;
+import static fr.igred.ij.io.OMEROBatchImage.listImages;
 import static javax.swing.JOptionPane.showMessageDialog;
 
 /**
@@ -920,43 +923,48 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 	 */
 	public void start(ActionEvent e) {
 		ProgressDialog progress = new ProgressDialog();
-		OMEROBatchRunner runner = new OMEROBatchRunner(script, client, progress);
-		runner.setListener(this);
+		OMEROBatchRunner runner;
 
-		// initiation of success variables
+		// initialization of success variables
 		boolean checkInput;
 		boolean checkMacro = getMacro();
 		boolean checkOutput = getOutput();
 
 		// input data
-		if (omero.isSelected()) {
-			runner.setInputOnOMERO(true);
-			int index = datasetListIn.getSelectedIndex();
-			DatasetWrapper dataset = datasets.get(index);
-			long inputDatasetId = dataset.getId();
-			runner.setInputDatasetId(inputDatasetId);
+		List<BatchImage> images;
+		long inputDatasetId = -1L;
+		try {
+			if (omero.isSelected()) {
+				int index = datasetListIn.getSelectedIndex();
+				DatasetWrapper dataset = datasets.get(index);
+				inputDatasetId = dataset.getId();
+				List<ImageWrapper> imageWrappers = dataset.getImages(client);
+				images = listImages(client, imageWrappers);
+				checkInput = true;
+			} else { // local.isSelected()
+				checkInput = getLocalInput();
+				images = listImages(directoryIn, recursive.isSelected());
+			}
+			runner = new OMEROBatchRunner(script, images, client, progress);
 			runner.setOutputDatasetId(inputDatasetId);
-			checkInput = true;
-		} else { // local.isSelected()
-			runner.setInputOnOMERO(false);
-			checkInput = getLocalInput();
-			runner.setDirectoryIn(directoryIn);
-			runner.setRecursive(recursive.isSelected());
+			runner.setListener(this);
+
+			runner.setSuffix(suffix.getText());
+			runner.setLoadROIS(checkLoadROIs.isSelected());
+			runner.setClearROIS(checkDelROIs.isSelected());
+			runner.setSaveImage(checkImage.isSelected());
+			runner.setSaveResults(checkResults.isSelected());
+			runner.setSaveROIs(checkROIs.isSelected());
+			runner.setSaveLog(checkLog.isSelected());
+		} catch (ServiceException | AccessException | ExecutionException | IOException exception) {
+			IJ.error(exception.getMessage());
+			return;
 		}
 
 		if (!checkInput || !checkMacro || !checkOutput) {
 			return;
 		}
 
-		// suffix
-		runner.setSuffix(suffix.getText());
-
-		runner.setLoadROIS(checkLoadROIs.isSelected());
-		runner.setClearROIS(checkDelROIs.isSelected());
-		runner.setSaveImage(checkImage.isSelected());
-		runner.setSaveResults(checkResults.isSelected());
-		runner.setSaveROIs(checkROIs.isSelected());
-		runner.setSaveLog(checkLog.isSelected());
 		if (onlineOutput.isSelected()) {
 			runner.setOutputOnOMERO(true);
 			if (checkResults.isSelected()) {

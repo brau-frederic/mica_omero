@@ -87,7 +87,9 @@ public class OMEROBatchImage implements BatchImage {
 			imp = imageWrapper.toImagePlus(client);
 			// Store image "annotate" permissions as a property in the ImagePlus object
 			imp.setProp("Annotatable", String.valueOf(imageWrapper.canAnnotate()));
-			loadROIs(imp, mode);
+			if (imp != null) {
+				loadROIs(imp, mode);
+			}
 		} catch (ExecutionException | ServiceException | AccessException e) {
 			LOGGER.severe("Could not load image: " + e.getMessage());
 		}
