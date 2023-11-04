@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2021-2022 MICA & GReD
+ *  Copyright (C) 2021-2023 MICA & GReD
  *
  * This program is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free Software
@@ -15,6 +15,7 @@
  * Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 package fr.igred.ij.macro;
+
 
 import ij.IJ;
 import ij.ImagePlus;
@@ -39,6 +40,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
+
 
 /**
  * Runs an ImageJ2 script.
@@ -265,10 +267,12 @@ public class ScriptRunner2 extends ScriptRunner {
 					ModuleItem<Long> newInput = new DefaultMutableModuleItem<>(scriptInfo, input.getKey(), Long.class);
 					scriptInfo.registerInput(newInput);
 				} else if (value.getClass().equals(Double.class)) {
-					ModuleItem<Double> newInput = new DefaultMutableModuleItem<>(scriptInfo, input.getKey(), Double.class);
+					ModuleItem<Double> newInput = new DefaultMutableModuleItem<>(scriptInfo, input.getKey(),
+																				 Double.class);
 					scriptInfo.registerInput(newInput);
 				} else {
-					ModuleItem<String> newInput = new DefaultMutableModuleItem<>(scriptInfo, input.getKey(), String.class);
+					ModuleItem<String> newInput = new DefaultMutableModuleItem<>(scriptInfo, input.getKey(),
+																				 String.class);
 					scriptInfo.registerInput(newInput);
 				}
 			}

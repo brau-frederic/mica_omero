@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2021-2022 MICA & GReD
+ *  Copyright (C) 2021-2023 MICA & GReD
  *
  * This program is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free Software
@@ -16,6 +16,7 @@
  */
 package fr.igred.ij.gui;
 
+
 import fr.igred.ij.macro.ProgressMonitor;
 
 import javax.swing.BoxLayout;
@@ -27,10 +28,12 @@ import javax.swing.SwingConstants;
 import java.awt.Container;
 import java.awt.Font;
 
+
 /**
  * Progress dialog for batch processing.
  */
 public class ProgressDialog extends JFrame implements ProgressMonitor {
+
 	private final JLabel progressLabel = new JLabel("", SwingConstants.CENTER);
 	private final JLabel stateLabel = new JLabel("", SwingConstants.CENTER);
 	private final JButton ok = new JButton("OK");
@@ -48,7 +51,8 @@ public class ProgressDialog extends JFrame implements ProgressMonitor {
 		Font progFont = new Font("Arial", Font.BOLD, 12);
 		JLabel warnLabel = new JLabel("", SwingConstants.CENTER);
 		warnLabel
-				.setText("<html> <body style='text-align:center;'> Warning: <br>Image processing can take time <br>depending on your network rate </body> </html>");
+				.setText(
+						"<html> <body style='text-align:center;'> Warning: <br>Image processing can take time <br>depending on your network rate </body> </html>");
 		warnLabel.setFont(warnFont);
 		progressLabel.setFont(progFont);
 		stateLabel.setFont(progFont);

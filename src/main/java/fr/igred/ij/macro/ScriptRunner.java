@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2021-2022 MICA & GReD
+ *  Copyright (C) 2021-2023 MICA & GReD
  *
  * This program is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free Software
@@ -16,9 +16,11 @@
  */
 package fr.igred.ij.macro;
 
+
 import ij.IJ;
 import ij.ImagePlus;
 import ij.gui.GenericDialog;
+
 
 /**
  * Runs an ImageJ macro.
@@ -69,8 +71,11 @@ public class ScriptRunner {
 	 * @return A new ScriptRunner object.
 	 */
 	public static ScriptRunner createScriptRunner(String path) {
-		if (isSciJavaLoaded()) return new ScriptRunner2(path);
-		else return new ScriptRunner(path);
+		if (isSciJavaLoaded()) {
+			return new ScriptRunner2(path);
+		} else {
+			return new ScriptRunner(path);
+		}
 	}
 
 

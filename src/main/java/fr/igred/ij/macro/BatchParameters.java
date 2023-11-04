@@ -16,6 +16,7 @@
  */
 package fr.igred.ij.macro;
 
+
 /**
  * Holds the parameters to batch run scripts.
  */
@@ -83,7 +84,9 @@ public class BatchParameters {
 	 * @param outputProjectId See above.
 	 */
 	public void setOutputProjectId(Long outputProjectId) {
-		if (outputProjectId != null) this.outputProjectId = outputProjectId;
+		if (outputProjectId != null) {
+			this.outputProjectId = outputProjectId;
+		}
 	}
 
 
@@ -103,7 +106,9 @@ public class BatchParameters {
 	 * @param outputDatasetId See above.
 	 */
 	public void setOutputDatasetId(Long outputDatasetId) {
-		if (outputDatasetId != null) this.outputDatasetId = outputDatasetId;
+		if (outputDatasetId != null) {
+			this.outputDatasetId = outputDatasetId;
+		}
 	}
 
 

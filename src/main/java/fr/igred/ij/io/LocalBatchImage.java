@@ -16,6 +16,7 @@
  */
 package fr.igred.ij.io;
 
+
 import fr.igred.omero.repository.ImageWrapper;
 import ij.ImagePlus;
 import loci.formats.FileStitcher;
@@ -32,6 +33,7 @@ import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.logging.Logger;
+
 
 /**
  * Image stored in a local file.
@@ -62,7 +64,9 @@ public class LocalBatchImage implements BatchImage {
 	 */
 	private static List<String> listFiles(File directory, boolean recursive) {
 		File[] files = directory.listFiles();
-		if (files == null) files = EMPTY_FILE_ARRAY;
+		if (files == null) {
+			files = EMPTY_FILE_ARRAY;
+		}
 		List<String> paths = new ArrayList<>(files.length);
 		for (File file : files) {
 			if (!file.isDirectory()) {
@@ -100,8 +104,11 @@ public class LocalBatchImage implements BatchImage {
 					process.execute();
 					int n = process.getSeriesCount();
 					FileStitcher fs = process.getFileStitcher();
-					if (fs != null) used = Arrays.asList(fs.getUsedFiles());
-					else used.add(file);
+					if (fs != null) {
+						used = Arrays.asList(fs.getUsedFiles());
+					} else {
+						used.add(file);
+					}
 					for (int i = 0; i < n; i++) {
 						batchImages.add(new LocalBatchImage(file, i));
 					}

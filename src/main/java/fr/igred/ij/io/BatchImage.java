@@ -16,8 +16,10 @@
  */
 package fr.igred.ij.io;
 
+
 import fr.igred.omero.repository.ImageWrapper;
 import ij.ImagePlus;
+
 
 /**
  * Interface to open images and retrieve the corresponding image on OMERO, if applicable.
@@ -31,6 +33,7 @@ public interface BatchImage {
 	 */
 	ImageWrapper getImageWrapper();
 
+
 	/**
 	 * Opens the image and returns the corresponding ImagePlus.
 	 *
@@ -39,6 +42,7 @@ public interface BatchImage {
 	 * @return See above.
 	 */
 	ImagePlus getImagePlus(ROIMode mode);
+
 
 	/**
 	 * Opens the image and returns the corresponding ImagePlus, with no ROI.

@@ -16,6 +16,7 @@
  */
 package fr.igred.ij.gui;
 
+
 import fr.igred.omero.Client;
 import fr.igred.omero.exception.ServiceException;
 import ij.Prefs;
@@ -38,6 +39,7 @@ import java.awt.event.ActionListener;
 import java.text.NumberFormat;
 
 import static javax.swing.JOptionPane.showMessageDialog;
+
 
 /**
  * Connection dialog for OMERO.

@@ -19,6 +19,7 @@ package fr.igred.ij.io;
 
 import loci.plugins.in.ImporterOptions;
 
+
 /**
  * Modes used to load ROIs.
  */
