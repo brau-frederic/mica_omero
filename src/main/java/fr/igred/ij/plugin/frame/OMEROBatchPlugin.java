@@ -20,6 +20,7 @@ import fr.igred.ij.gui.OMEROConnectDialog;
 import fr.igred.ij.gui.ProgressDialog;
 import fr.igred.ij.io.BatchImage;
 import fr.igred.ij.macro.BatchListener;
+import fr.igred.ij.macro.BatchParameters;
 import fr.igred.ij.macro.OMEROBatchRunner;
 import fr.igred.ij.macro.ScriptRunner;
 import fr.igred.omero.Client;
@@ -923,7 +924,7 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 	 */
 	public void start(ActionEvent e) {
 		ProgressDialog progress = new ProgressDialog();
-		OMEROBatchRunner runner;
+		BatchParameters params = new BatchParameters();
 
 		// initialization of success variables
 		boolean checkInput;
@@ -931,6 +932,14 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 		boolean checkOutput = getOutput();
 
 		// input data
+		params.setSuffix(suffix.getText());
+		params.setLoadROIS(checkLoadROIs.isSelected());
+		params.setClearROIS(checkDelROIs.isSelected());
+		params.setSaveImage(checkImage.isSelected());
+		params.setSaveResults(checkResults.isSelected());
+		params.setSaveROIs(checkROIs.isSelected());
+		params.setSaveLog(checkLog.isSelected());
+
 		List<BatchImage> images;
 		long inputDatasetId = -1L;
 		try {
@@ -945,17 +954,7 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 				checkInput = getLocalInput();
 				images = listImages(directoryIn, recursive.isSelected());
 			}
-			runner = new OMEROBatchRunner(script, images, client, progress);
-			runner.setOutputDatasetId(inputDatasetId);
-			runner.setListener(this);
-
-			runner.setSuffix(suffix.getText());
-			runner.setLoadROIS(checkLoadROIs.isSelected());
-			runner.setClearROIS(checkDelROIs.isSelected());
-			runner.setSaveImage(checkImage.isSelected());
-			runner.setSaveResults(checkResults.isSelected());
-			runner.setSaveROIs(checkROIs.isSelected());
-			runner.setSaveLog(checkLog.isSelected());
+			params.setOutputDatasetId(inputDatasetId);
 		} catch (ServiceException | AccessException | ExecutionException | IOException exception) {
 			IJ.error(exception.getMessage());
 			return;
@@ -966,19 +965,21 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 		}
 
 		if (onlineOutput.isSelected()) {
-			runner.setOutputOnOMERO(true);
+			params.setOutputOnOMERO(true);
 			if (checkResults.isSelected()) {
-				runner.setOutputProjectId(outputProjectId);
+				params.setOutputProjectId(outputProjectId);
 			}
 			if (checkImage.isSelected()) {
-				runner.setOutputDatasetId(outputDatasetId);
+				params.setOutputDatasetId(outputDatasetId);
 			}
 		}
 		if (localOutput.isSelected()) {
-			runner.setOutputOnLocal(true);
-			runner.setDirectoryOut(directoryOut);
+			params.setOutputOnLocal(true);
+			params.setDirectoryOut(directoryOut);
 		}
 
+		OMEROBatchRunner runner = new OMEROBatchRunner(script, images, params, client, progress);
+		runner.setListener(this);
 		start.setEnabled(false);
 		try {
 			runner.start();
