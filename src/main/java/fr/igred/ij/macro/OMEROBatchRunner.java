@@ -55,6 +55,7 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -386,7 +387,7 @@ public class OMEROBatchRunner extends Thread {
 	 */
 	@Override
 	public void run() {
-		boolean finished = false;
+		boolean running = true;
 		if (progress instanceof ProgressDialog) {
 			((Component) progress).setVisible(true);
 		}
@@ -408,27 +409,29 @@ public class OMEROBatchRunner extends Thread {
 					LOGGER.warning("Temp directory may not be deleted.");
 				}
 			}
-			finished = true;
+			running = false;
 			setState("");
 			setDone();
 		} catch (IOException e) {
-			finished = true;
+			running = false;
 			setDone();
 			setProgress("Macro cancelled");
-			if (e.getMessage() != null && "Macro cancelled".equals(e.getMessage())) {
+			if ("Macro cancelled".equals(e.getMessage())) {
 				IJ.run("Close");
 			}
 			IJ.error(e.getMessage());
 		} finally {
-			if (!finished) {
+			if (running) {
 				setDone();
 				setProgress("An unexpected error occurred.");
 			}
 			if (listener != null) {
 				listener.onThreadFinished();
 			}
-			rm.setVisible(true);
-			rm.close();
+			if (rm != null) {
+				rm.setVisible(true);
+				rm.close();
+			}
 		}
 	}
 
@@ -576,12 +579,8 @@ public class OMEROBatchRunner extends Thread {
 		Long omeroOutputId = omeroInputId;
 		List<ImagePlus> outputs = getOutputImages(inputImage);
 
-		ImagePlus outputImage = inputImage;
-		if (!outputs.isEmpty()) {
-			outputImage = outputs.get(0);
-		}
+		ImagePlus outputImage = outputs.isEmpty() ? inputImage : outputs.get(0);
 
-		// If input image is expected as output for ROIs on OMERO but is not annotatable, import it.
 		boolean annotatable = Boolean.parseBoolean(inputImage.getProp("Annotatable"));
 		boolean outputIsNotInput = !inputImage.equals(outputImage);
 		if (!params.isOutputOnOMERO() || !params.shouldSaveROIs() || annotatable || outputIsNotInput) {
@@ -589,11 +588,7 @@ public class OMEROBatchRunner extends Thread {
 		}
 
 		if (params.shouldSaveImages()) {
-			if (outputs.isEmpty()) {
-				LOGGER.info("Warning: there is no new image.");
-			}
-			List<Long> outputIds = new ArrayList<>(outputs.size());
-			outputs.forEach(imp -> outputIds.addAll(saveImage(imp, property)));
+			List<Long> outputIds = saveImages(outputs, property);
 			if (!outputIds.isEmpty() && outputIsNotInput) {
 				omeroOutputId = outputIds.get(0);
 			}
@@ -616,6 +611,24 @@ public class OMEROBatchRunner extends Thread {
 			imp.changes = false;
 			imp.close();
 		}
+	}
+
+
+	/**
+	 * Saves images.
+	 *
+	 * @param outputs  The images to save.
+	 * @param property The ROI property used to group shapes in OMERO.
+	 *
+	 * @return The OMERO IDs of the (possibly) uploaded images.
+	 */
+	private List<Long> saveImages(Collection<? extends ImagePlus> outputs, String property) {
+		if (outputs.isEmpty()) {
+			LOGGER.info("Warning: there is no new image.");
+		}
+		List<Long> outputIds = new ArrayList<>(outputs.size());
+		outputs.forEach(imp -> outputIds.addAll(saveImage(imp, property)));
+		return outputIds;
 	}
 
 
