@@ -498,11 +498,11 @@ public class OMEROBatchRunner extends Thread {
 		String property = ROIWrapper.IJ_PROPERTY;
 		WindowManager.closeAllWindows();
 
-		// Initialize ROI Manager
-		initRoiManager();
-
 		int index = 0;
 		for (BatchImage image : images) {
+			// Initialize ROI Manager
+			initRoiManager();
+
 			//noinspection HardcodedFileSeparator
 			setProgress("Image " + (index + 1) + "/" + images.size());
 			setState("Opening image...");
