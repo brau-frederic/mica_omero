@@ -173,7 +173,7 @@ public class LocalBatchImage implements BatchImage {
 	@Override
 	public ImagePlus getImagePlus(ROIMode mode) {
 		ImagePlus imp = null;
-		boolean loadROIs = !mode.toString().isEmpty();
+		boolean loadROIs = mode != ROIMode.DO_NOT_LOAD;
 		try {
 			ImporterOptions options = initImporterOptions();
 			options.setShowROIs(loadROIs);

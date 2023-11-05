@@ -494,23 +494,19 @@ public class OMEROBatchRunner extends Thread {
 	/**
 	 * Runs a macro on images and saves the results.
 	 */
-	void runMacro() {
+	private void runMacro() {
 		String property = ROIWrapper.IJ_PROPERTY;
 		WindowManager.closeAllWindows();
 
 		// Initialize ROI Manager
 		initRoiManager();
-		ROIMode roiMode = ROIMode.DO_NOT_LOAD;
-		if (params.shouldLoadROIs()) {
-			roiMode = ROIMode.MANAGER;
-		}
 
 		int index = 0;
 		for (BatchImage image : images) {
 			//noinspection HardcodedFileSeparator
 			setProgress("Image " + (index + 1) + "/" + images.size());
 			setState("Opening image...");
-			ImagePlus imp = image.getImagePlus(roiMode);
+			ImagePlus imp = image.getImagePlus(params.getROIMode());
 			// If image could not be loaded, continue to next image.
 			if (imp != null) {
 				ImageWrapper imageWrapper = image.getImageWrapper();

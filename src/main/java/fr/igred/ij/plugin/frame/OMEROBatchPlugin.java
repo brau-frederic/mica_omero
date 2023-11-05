@@ -20,6 +20,7 @@ package fr.igred.ij.plugin.frame;
 import fr.igred.ij.gui.OMEROConnectDialog;
 import fr.igred.ij.gui.ProgressDialog;
 import fr.igred.ij.io.BatchImage;
+import fr.igred.ij.io.ROIMode;
 import fr.igred.ij.macro.BatchListener;
 import fr.igred.ij.macro.BatchParameters;
 import fr.igred.ij.macro.OMEROBatchRunner;
@@ -97,7 +98,7 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 	// choices of input images
 	private final JPanel input1a = new JPanel();
 	private final JPanel input1b = new JPanel();
-	private final JPanel input1c = new JPanel();
+	private final JPanel input3 = new JPanel();
 	private final JPanel input2 = new JPanel();
 
 	// group and user selection
@@ -113,8 +114,8 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 	private final JComboBox<String> datasetListIn = new JComboBox<>();
 	/** The checkbox to delete ROIs. */
 	private final JCheckBox checkDelROIs = new JCheckBox("Clear ROIs each time");
-	/** The checkbox to load ROIs. */
-	private final JCheckBox checkLoadROIs = new JCheckBox("Load ROIs");
+	/** The list of possible output projects. */
+	private final JComboBox<ROIMode> roiMode = new JComboBox<>(ROIMode.values());
 
 	// choice of the record
 	/** The input folder. */
@@ -286,9 +287,6 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 		projectListIn.setFont(listFont);
 		datasetListIn.setFont(listFont);
 
-		input1c.add(checkLoadROIs);
-		input1c.add(checkDelROIs);
-
 		JLabel inputFolderLabel = new JLabel("Images folder: ");
 		JButton inputFolderBtn = new JButton(browse);
 		inputFolderLabel.setLabelFor(inputFolder);
@@ -300,11 +298,16 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 		input2.add(recursive);
 		inputFolderBtn.addActionListener(e -> chooseDirectory(inputFolder));
 
+		JLabel labelROIMode = new JLabel("Load ROIs: ");
+		input3.add(labelROIMode);
+		input3.add(roiMode);
+		input3.add(checkDelROIs);
+
 		JPanel panelInput = new JPanel();
 		panelInput.add(input1a);
 		panelInput.add(input1b);
-		panelInput.add(input1c);
 		panelInput.add(input2);
+		panelInput.add(input3);
 		panelInput.setLayout(new BoxLayout(panelInput, BoxLayout.PAGE_AXIS));
 		panelInput.setBorder(BorderFactory.createTitledBorder("Input"));
 		super.add(panelInput);
@@ -422,12 +425,12 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 		input2.setVisible(false);
 		input1a.setVisible(true);
 		input1b.setVisible(true);
-		input1c.setVisible(true);
+		input3.setVisible(true);
 		super.pack();
 
 		input1a.setMaximumSize(new Dimension(input1a.getMaximumSize().width, input1a.getHeight()));
 		input1b.setMaximumSize(new Dimension(input1b.getMaximumSize().width, input1b.getHeight()));
-		input1c.setMaximumSize(new Dimension(input1c.getMaximumSize().width, input1c.getHeight()));
+		input3.setMaximumSize(new Dimension(input3.getMaximumSize().width, input3.getHeight()));
 
 		local.setSelected(true);
 
@@ -799,17 +802,15 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 			if (connected) {
 				input1a.setVisible(true);
 				input1b.setVisible(true);
-				input1c.setVisible(true);
-				input1c.add(checkLoadROIs);
 				input2.setVisible(false);
+				checkDelROIs.setVisible(true);
 			} else {
 				local.setSelected(true);
 			}
 		} else { //local.isSelected()
 			input2.setVisible(true);
-			input2.add(checkLoadROIs);
 			checkDelROIs.setSelected(false);
-			input1c.setVisible(false);
+			checkDelROIs.setVisible(false);
 			input1b.setVisible(false);
 			input1a.setVisible(false);
 		}
@@ -999,7 +1000,7 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 
 		// input data
 		params.setSuffix(suffix.getText());
-		params.setLoadROIS(checkLoadROIs.isSelected());
+		params.setROIMode(roiMode.getItemAt(roiMode.getSelectedIndex()));
 		params.setClearROIS(checkDelROIs.isSelected());
 		params.setSaveImages(checkImage.isSelected());
 		params.setSaveResults(checkResults.isSelected());

@@ -17,12 +17,15 @@
 package fr.igred.ij.macro;
 
 
+import fr.igred.ij.io.ROIMode;
+
+
 /**
  * Holds the parameters to batch run scripts.
  */
 public class BatchParameters {
 
-	private boolean loadROIs;
+	private ROIMode roiMode;
 	private boolean saveImages;
 	private boolean saveROIs;
 	private boolean saveResults;
@@ -40,7 +43,7 @@ public class BatchParameters {
 	 * Default constructor.
 	 */
 	public BatchParameters() {
-		this.loadROIs = false;
+		this.roiMode = ROIMode.DO_NOT_LOAD;
 		this.saveImages = false;
 		this.saveROIs = false;
 		this.saveResults = false;
@@ -61,7 +64,7 @@ public class BatchParameters {
 	 * @param parameters The parameters to copy.
 	 */
 	public BatchParameters(BatchParameters parameters) {
-		this.loadROIs = parameters.loadROIs;
+		this.roiMode = parameters.roiMode;
 		this.saveImages = parameters.saveImages;
 		this.saveROIs = parameters.saveROIs;
 		this.saveResults = parameters.saveResults;
@@ -185,18 +188,18 @@ public class BatchParameters {
 	 *
 	 * @return See above.
 	 */
-	public boolean shouldLoadROIs() {
-		return loadROIs;
+	public ROIMode getROIMode() {
+		return roiMode;
 	}
 
 
 	/**
 	 * Sets whether the ROIs should be loaded or not.
 	 *
-	 * @param loadROIs See above.
+	 * @param roiMode See above.
 	 */
-	public void setLoadROIS(boolean loadROIs) {
-		this.loadROIs = loadROIs;
+	public void setROIMode(ROIMode roiMode) {
+		this.roiMode = roiMode;
 	}
 
 

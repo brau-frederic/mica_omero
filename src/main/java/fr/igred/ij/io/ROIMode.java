@@ -25,9 +25,9 @@ import loci.plugins.in.ImporterOptions;
  */
 public enum ROIMode {
 	/**
-	 * Do not load ROIs (empty String for ImporterOptions).
+	 * Do not load ROIs.
 	 */
-	DO_NOT_LOAD(""),
+	DO_NOT_LOAD("No"),
 	/**
 	 * Load ROIs in the ROI Manager.
 	 */
@@ -38,7 +38,7 @@ public enum ROIMode {
 	OVERLAY(ImporterOptions.ROIS_MODE_OVERLAY);
 
 	/**
-	 * ROI mode String value for ImporterOptions.
+	 * ROI mode String value for ImporterOptions and user selection.
 	 */
 	private final String value;
 
