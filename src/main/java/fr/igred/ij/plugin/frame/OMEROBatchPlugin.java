@@ -800,14 +800,15 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 				input1a.setVisible(true);
 				input1b.setVisible(true);
 				input1c.setVisible(true);
+				input1c.add(checkLoadROIs);
 				input2.setVisible(false);
 			} else {
 				local.setSelected(true);
 			}
 		} else { //local.isSelected()
 			input2.setVisible(true);
+			input2.add(checkLoadROIs);
 			checkDelROIs.setSelected(false);
-			checkLoadROIs.setSelected(false);
 			input1c.setVisible(false);
 			input1b.setVisible(false);
 			input1a.setVisible(false);
@@ -1277,9 +1278,7 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 
 	private class ClientDisconnector extends WindowAdapter {
 
-		ClientDisconnector() {
-			super();
-		}
+		ClientDisconnector() {}
 
 
 		@Override
