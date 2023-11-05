@@ -98,7 +98,9 @@ public class OMEROBatchImage implements BatchImage {
 			imp = imageWrapper.toImagePlus(client);
 			// Store image "annotate" permissions as a property in the ImagePlus object
 			imp.setProp("Annotatable", String.valueOf(imageWrapper.canAnnotate()));
-			loadROIs(imp, mode);
+			if (mode != ROIMode.DO_NOT_LOAD) {
+				loadROIs(imp, mode);
+			}
 		} catch (ExecutionException | ServiceException | AccessException e) {
 			LOGGER.severe("Could not load image: " + e.getMessage());
 		}
@@ -134,7 +136,7 @@ public class OMEROBatchImage implements BatchImage {
 				ijRoi.setImage(imp);
 				overlay.add(ijRoi, ijRoi.getName());
 			}
-		} else if (rm != null) {
+		} else if (roiMode == ROIMode.MANAGER && rm != null) {
 			rm.reset(); // Reset ROI manager to clear previous ROIs
 			for (Roi ijRoi : ijRois) {
 				ijRoi.setImage(imp);

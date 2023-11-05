@@ -534,18 +534,18 @@ public class OMEROBatchRunner extends Thread {
 	/**
 	 * Loads ROIs from an image in OMERO into ImageJ.
 	 *
-	 * @param image     The OMERO image.
-	 * @param imp       The image in ImageJ ROIs should be linked to.
-	 * @param toOverlay Whether the ROIs should be loaded to the ROI Manager (false) or the overlay (true).
+	 * @param image   The OMERO image.
+	 * @param imp     The image in ImageJ ROIs should be linked to.
+	 * @param roiMode The mode used to load ROIs.
 	 */
-	private void loadROIs(ImageWrapper image, ImagePlus imp, boolean toOverlay) {
+	private void loadROIs(ImageWrapper image, ImagePlus imp, ROIMode roiMode) {
 		List<Roi> ijRois = new ArrayList<>(0);
 		try {
 			ijRois = ROIWrapper.toImageJ(image.getROIs(client));
 		} catch (ExecutionException | ServiceException | AccessException e) {
 			IJ.error("Could not load ROIs: " + e.getMessage());
 		}
-		if (toOverlay) {
+		if (roiMode == ROIMode.OVERLAY) {
 			Overlay overlay = imp.getOverlay();
 			if (overlay != null) {
 				overlay.clear();
@@ -556,7 +556,7 @@ public class OMEROBatchRunner extends Thread {
 				ijRoi.setImage(imp);
 				overlay.add(ijRoi, ijRoi.getName());
 			}
-		} else {
+		} else if (roiMode == ROIMode.MANAGER) {
 			rm.reset(); // Reset ROI manager to clear previous ROIs
 			for (Roi ijRoi : ijRois) {
 				ijRoi.setImage(imp);
@@ -687,7 +687,7 @@ public class OMEROBatchRunner extends Thread {
 				}
 				setState("Saving overlay ROIs on OMERO...");
 				image.saveROIs(client, rois);
-				loadROIs(image, imp, true); // reload ROIs
+				loadROIs(image, imp, ROIMode.OVERLAY); // reload ROIs
 			} catch (ServiceException | AccessException | ExecutionException e) {
 				IJ.error("Could not import overlay ROIs to OMERO: " + e.getMessage());
 			}
@@ -720,7 +720,7 @@ public class OMEROBatchRunner extends Thread {
 				}
 				setState("Saving ROIs on OMERO...");
 				image.saveROIs(client, rois);
-				loadROIs(image, imp, false); // reload ROIs
+				loadROIs(image, imp, ROIMode.MANAGER); // reload ROIs
 			} catch (ServiceException | AccessException | ExecutionException e) {
 				IJ.error("Could not import ROIs to OMERO: " + e.getMessage());
 			}
