@@ -6,7 +6,7 @@
     <parent>
         <artifactId>pom-scijava</artifactId>
         <groupId>org.scijava</groupId>
-        <version>36.0.0</version>
+        <version>37.0.0</version>
     </parent>
 
     <groupId>fr.igred</groupId>
@@ -48,7 +48,7 @@
             <id>ppouchin</id>
             <name>Pierre Pouchin</name>
             <email>pierre.pouchin@uca.fr</email>
-            <url>https://www.igred.fr/directory/member/pierre-pouchin/</url>
+            <url>https://www.igred.fr/en/member/pierre_pouchin/</url>
             <organization>GReD (INSERM U1103 / CNRS UMR 6293 / UCA)</organization>
             <organizationUrl>https://www.igred.fr</organizationUrl>
             <roles>
