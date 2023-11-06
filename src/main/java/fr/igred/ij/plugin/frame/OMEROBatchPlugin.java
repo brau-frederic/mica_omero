@@ -98,7 +98,6 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 	// choices of input images
 	private final JPanel input1a = new JPanel();
 	private final JPanel input1b = new JPanel();
-	private final JPanel input3 = new JPanel();
 	private final JPanel input2 = new JPanel();
 
 	// group and user selection
@@ -147,14 +146,10 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 	/** The checkbox to save locally. */
 	private final JCheckBox localOutput = new JCheckBox("Local");
 
-	// existing dataset
-	private final JPanel output3a = new JPanel();
 	/** The list of possible output projects. */
 	private final JComboBox<String> projectListOut = new JComboBox<>();
 	/** The list of possible output datasets. */
 	private final JComboBox<String> datasetListOut = new JComboBox<>();
-	/** The button to create a new dataset. */
-	private final JButton newDatasetBtn = new JButton("New");
 
 	// local
 	private final JPanel output3b = new JPanel();
@@ -202,8 +197,8 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 		super("OMERO Batch Plugin");
 		super.setMinimumSize(minimumSize);
 
-		final String projectName = "Project Name: ";
-		final String datasetName = "Dataset Name: ";
+		final String projectName = "Project: ";
+		final String datasetName = "Dataset: ";
 		final String browse = "Browse";
 
 		final Font nameFont = new Font("Arial", Font.ITALIC, 10);
@@ -255,8 +250,8 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 		source.setBorder(BorderFactory.createTitledBorder("Source"));
 		super.add(source);
 
-		JLabel labelGroup = new JLabel("Group Name: ");
-		JLabel labelUser = new JLabel("User Name: ");
+		JLabel labelGroup = new JLabel("Group: ");
+		JLabel labelUser = new JLabel("User: ");
 		labelGroup.setLabelFor(groupList);
 		labelUser.setLabelFor(userList);
 		input1a.add(labelGroup);
@@ -298,7 +293,9 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 		input2.add(recursive);
 		inputFolderBtn.addActionListener(e -> chooseDirectory(inputFolder));
 
+		JPanel input3 = new JPanel();
 		JLabel labelROIMode = new JLabel("Load ROIs: ");
+		labelROIMode.setLabelFor(roiMode);
 		input3.add(labelROIMode);
 		input3.add(roiMode);
 		input3.add(checkDelROIs);
@@ -378,17 +375,20 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 		output2.add(labelExtension);
 		output2.add(suffix);
 
+		JPanel output3a = new JPanel();
+		JPanel output3a1 = new JPanel();
+		JButton newDatasetBtn = new JButton("New");
 		JLabel labelProjectOut = new JLabel(projectName);
 		JLabel labelDatasetOut = new JLabel(datasetName);
 		labelProjectOut.setLabelFor(projectListOut);
 		labelDatasetOut.setLabelFor(datasetListOut);
 		output3a.add(labelProjectOut);
 		output3a.add(projectListOut);
-		output3a.add(Box.createRigidArea(smallHorizontal));
-		output3a.add(labelDatasetOut);
-		output3a.add(datasetListOut);
-		output3a.add(Box.createRigidArea(smallHorizontal));
-		output3a.add(newDatasetBtn);
+		output3a1.add(labelDatasetOut);
+		output3a1.add(datasetListOut);
+		output3a1.add(Box.createRigidArea(smallHorizontal));
+		output3a1.add(newDatasetBtn);
+		output3a.add(output3a1);
 		projectListOut.addItemListener(this::updateOutputProject);
 		datasetListOut.addItemListener(this::updateOutputDataset);
 		newDatasetBtn.addActionListener(this::createNewDataset);
@@ -407,8 +407,8 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 
 		// choice of output
 		JPanel panelOutput = new JPanel();
-		panelOutput.add(output2);
 		panelOutput.add(output1);
+		panelOutput.add(output2);
 		panelOutput.add(output3a);
 		panelOutput.add(output3b);
 		panelOutput.setLayout(new BoxLayout(panelOutput, BoxLayout.PAGE_AXIS));
@@ -567,7 +567,7 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 	 * @param username The OMERO user.
 	 * @param userId   The user ID.
 	 */
-	public void userProjectsAndDatasets(String username, long userId) {
+	private void userProjects(String username, long userId) {
 		if ("All members".equals(username)) {
 			userProjects = groupProjects;
 		} else {
@@ -719,7 +719,7 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 			if (index >= 1) {
 				userId = users.get(index - 1).getId();
 			}
-			userProjectsAndDatasets(username, userId);
+			userProjects(username, userId);
 			projectListIn.removeAllItems();
 			projectListOut.removeAllItems();
 			datasetListIn.removeAllItems();
@@ -994,9 +994,9 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 		BatchParameters params = new BatchParameters();
 
 		// initialization of success variables
-		boolean checkInput;
-		boolean checkMacro = getMacro();
-		boolean checkOutput = getOutput();
+		boolean badInput;
+		boolean badMacro = !getMacro();
+		boolean badOutput = !getOutput();
 
 		// input data
 		params.setSuffix(suffix.getText());
@@ -1016,9 +1016,9 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 				inputDatasetId = dataset.getId();
 				List<ImageWrapper> imageWrappers = dataset.getImages(client);
 				images = listImages(client, imageWrappers);
-				checkInput = true;
+				badInput = false;
 			} else { // local.isSelected()
-				checkInput = getLocalInput();
+				badInput = !getLocalInput();
 				images = listImages(directoryIn, recursive.isSelected());
 			}
 			params.setOutputDatasetId(inputDatasetId);
@@ -1027,7 +1027,7 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 			return;
 		}
 
-		if (!checkInput || !checkMacro || !checkOutput) {
+		if (badInput || badMacro || badOutput) {
 			return;
 		}
 
@@ -1073,9 +1073,8 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 		}
 
 		output2.setVisible(outputImage);
-		output3a.setVisible(outputOnline && (outputImage || outputResults));
-		datasetListOut.setVisible(outputOnline && outputImage);
-		newDatasetBtn.setVisible(outputOnline && outputImage);
+		projectListOut.getParent().setVisible(outputOnline && (outputImage || outputResults));
+		datasetListOut.getParent().setVisible(outputOnline && outputImage);
 		if (outputOnline && userProjects.equals(myProjects)) {
 			projectListOut.setSelectedIndex(projectListIn.getSelectedIndex());
 		}
