@@ -95,11 +95,6 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 	/** The local input button. */
 	private final JRadioButton local = new JRadioButton("Local");
 
-	// choices of input images
-	private final JPanel input1a = new JPanel();
-	private final JPanel input1b = new JPanel();
-	private final JPanel input2 = new JPanel();
-
 	// group and user selection
 	/** The list of groups. */
 	private final JComboBox<String> groupList = new JComboBox<>();
@@ -136,7 +131,6 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 	/** The checkbox to save the log. */
 	private final JCheckBox checkLog = new JCheckBox("Log file");
 
-	private final JPanel output2 = new JPanel();
 	/** The suffix of the output files. */
 	private final JTextField suffix = new JTextField(10);
 
@@ -151,8 +145,6 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 	/** The list of possible output datasets. */
 	private final JComboBox<String> datasetListOut = new JComboBox<>();
 
-	// local
-	private final JPanel output3b = new JPanel();
 	/** The output folder. */
 	private final JTextField outputFolder = new JTextField(20);
 
@@ -250,6 +242,7 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 		source.setBorder(BorderFactory.createTitledBorder("Source"));
 		super.add(source);
 
+		JPanel input1a = new JPanel();
 		JLabel labelGroup = new JLabel("Group: ");
 		JLabel labelUser = new JLabel("User: ");
 		labelGroup.setLabelFor(groupList);
@@ -264,6 +257,7 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 		groupList.setFont(listFont);
 		userList.setFont(listFont);
 
+		JPanel input1b = new JPanel();
 		JLabel labelProjectIn = new JLabel(projectName);
 		JLabel labelDatasetIn = new JLabel(datasetName);
 		JButton preview = new JButton("Preview");
@@ -282,6 +276,7 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 		projectListIn.setFont(listFont);
 		datasetListIn.setFont(listFont);
 
+		JPanel input2 = new JPanel();
 		JLabel inputFolderLabel = new JLabel("Images folder: ");
 		JButton inputFolderBtn = new JButton(browse);
 		inputFolderLabel.setLabelFor(inputFolder);
@@ -369,6 +364,7 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 		onlineOutput.addActionListener(this::updateOutput);
 		localOutput.addActionListener(this::updateOutput);
 
+		JPanel output2 = new JPanel();
 		JLabel labelExtension = new JLabel("Suffix of output files:");
 		labelExtension.setLabelFor(suffix);
 		suffix.setText("_macro");
@@ -395,6 +391,7 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 		projectListOut.setFont(listFont);
 		datasetListOut.setFont(listFont);
 
+		JPanel output3b = new JPanel();
 		JLabel outputFolderLabel = new JLabel("Output folder: ");
 		JButton directoryBtn = new JButton(browse);
 		outputFolderLabel.setLabelFor(outputFolder);
@@ -800,19 +797,19 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 				connected = connect();
 			}
 			if (connected) {
-				input1a.setVisible(true);
-				input1b.setVisible(true);
-				input2.setVisible(false);
+				groupList.getParent().setVisible(true);
+				projectListIn.getParent().setVisible(true);
+				inputFolder.getParent().setVisible(false);
 				checkDelROIs.setVisible(true);
 			} else {
 				local.setSelected(true);
 			}
 		} else { //local.isSelected()
-			input2.setVisible(true);
+			inputFolder.getParent().setVisible(true);
 			checkDelROIs.setSelected(false);
 			checkDelROIs.setVisible(false);
-			input1b.setVisible(false);
-			input1a.setVisible(false);
+			projectListIn.getParent().setVisible(false);
+			groupList.getParent().setVisible(false);
 		}
 		this.repack();
 	}
@@ -1072,13 +1069,13 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 			onlineOutput.setSelected(outputOnline);
 		}
 
-		output2.setVisible(outputImage);
+		suffix.getParent().setVisible(outputImage);
 		projectListOut.getParent().setVisible(outputOnline && (outputImage || outputResults));
 		datasetListOut.getParent().setVisible(outputOnline && outputImage);
 		if (outputOnline && userProjects.equals(myProjects)) {
 			projectListOut.setSelectedIndex(projectListIn.getSelectedIndex());
 		}
-		output3b.setVisible(outputLocal);
+		outputFolder.getParent().setVisible(outputLocal);
 		repack();
 	}
 
@@ -1265,12 +1262,12 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 		this.pack();
 		this.setMinimumSize(bestSize);
 
-		Container inputPanel = input1b.getParent();
+		Container inputPanel = projectListIn.getParent().getParent();
 		inputPanel.setMinimumSize(inputPanel.getPreferredSize());
 		inputPanel.setMaximumSize(
 				new Dimension(inputPanel.getMaximumSize().width, inputPanel.getPreferredSize().height));
 
-		Container outputPanel = output2.getParent();
+		Container outputPanel = onlineOutput.getParent().getParent();
 		outputPanel.setMinimumSize(outputPanel.getPreferredSize());
 		outputPanel.setMaximumSize(new Dimension(outputPanel.getMaximumSize().width, outputPanel.getHeight()));
 	}
