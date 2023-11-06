@@ -669,8 +669,9 @@ public class OMEROBatchRunner extends Thread {
 	private void saveOverlay(ImagePlus imp, Long imageId, String title, String property) {
 		if (params.isOutputOnLocal()) {  //  local save
 			setState("Saving overlay ROIs...");
+			String timestamp = params.shouldClearROIs() ? "" : timestamp() + "_";
 			String path = params.getDirectoryOut() + File.separator +
-						  title + "_" + timestamp() + "_RoiSet.zip";
+						  title + "_" + timestamp + "RoiSet.zip";
 			List<Roi> ijRois = getOverlay(imp);
 			saveRoiFile(ijRois, path);
 		}
@@ -702,8 +703,9 @@ public class OMEROBatchRunner extends Thread {
 	private void saveROIManager(ImagePlus imp, Long imageId, String title, String property) {
 		if (params.isOutputOnLocal()) {  //  local save
 			setState("Saving ROIs...");
+			String timestamp = params.shouldClearROIs() ? "" : timestamp() + "_";
 			String path = params.getDirectoryOut() + File.separator +
-						  title + "_" + timestamp() + "_RoiSet.zip";
+						  title + "_" + timestamp + "RoiSet.zip";
 			List<Roi> ijRois = getManagedRois(imp);
 			saveRoiFile(ijRois, path);
 		}

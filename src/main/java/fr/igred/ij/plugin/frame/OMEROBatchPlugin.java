@@ -800,14 +800,11 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 				groupList.getParent().setVisible(true);
 				projectListIn.getParent().setVisible(true);
 				inputFolder.getParent().setVisible(false);
-				checkDelROIs.setVisible(true);
 			} else {
 				local.setSelected(true);
 			}
 		} else { //local.isSelected()
 			inputFolder.getParent().setVisible(true);
-			checkDelROIs.setSelected(false);
-			checkDelROIs.setVisible(false);
 			projectListIn.getParent().setVisible(false);
 			groupList.getParent().setVisible(false);
 		}
@@ -1185,8 +1182,8 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 	 */
 	private boolean checkDeleteROIs() {
 		boolean check = true;
-		if (checkDelROIs.isSelected() && (!onlineOutput.isSelected() || !checkROIs.isSelected())) {
-			errorWindow(String.format("ROIs:%nYou can't clear ROIs if you don't save ROIs on OMERO"));
+		if (checkDelROIs.isSelected() && !checkROIs.isSelected()) {
+			errorWindow(String.format("ROIs:%nYou can't clear ROIs if you don't save ROIs"));
 			check = false;
 		}
 		return check;
