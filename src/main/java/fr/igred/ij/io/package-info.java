@@ -14,20 +14,13 @@
  * this program; if not, write to the Free Software Foundation, Inc., 51 Franklin
  * Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
-package fr.igred.ij.macro;
-
-
-import java.util.EventListener;
-
-
 /**
- * Listens to batch runner thread.
+ * This package contains interfaces and classes meant to handle input/output, most notably images:
+ * <ul>
+ *     <li>{@link fr.igred.ij.io.BatchImage} to generally handle images in batch</li>
+ *     <li>{@link fr.igred.ij.io.OMEROBatchImage} to manage images from OMERO</li>
+ *     <li>{@link fr.igred.ij.io.LocalBatchImage} to manage local images</li>
+ * </ul>
+ * It also contains {@link fr.igred.ij.io.ROIMode} to handle ROI loading.
  */
-public interface BatchListener extends EventListener {
-
-	/**
-	 * Action performed when thread is finished.
-	 */
-	void onThreadFinished();
-
-}
+package fr.igred.ij.io;

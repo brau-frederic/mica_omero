@@ -14,20 +14,43 @@
  * this program; if not, write to the Free Software Foundation, Inc., 51 Franklin
  * Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
-package fr.igred.ij.macro;
+package fr.igred.ij.io;
 
 
-import java.util.EventListener;
+import fr.igred.omero.repository.ImageWrapper;
+import ij.ImagePlus;
 
 
 /**
- * Listens to batch runner thread.
+ * Interface to open images and retrieve the corresponding image on OMERO, if applicable.
  */
-public interface BatchListener extends EventListener {
+public interface BatchImage {
 
 	/**
-	 * Action performed when thread is finished.
+	 * Returns the related ImageWrapper, or null if there is none.
+	 *
+	 * @return See above.
 	 */
-	void onThreadFinished();
+	ImageWrapper getImageWrapper();
+
+
+	/**
+	 * Opens the image and returns the corresponding ImagePlus.
+	 *
+	 * @param mode The mode used to load ROIs.
+	 *
+	 * @return See above.
+	 */
+	ImagePlus getImagePlus(ROIMode mode);
+
+
+	/**
+	 * Opens the image and returns the corresponding ImagePlus, with no ROI.
+	 *
+	 * @return See above.
+	 */
+	default ImagePlus getImagePlus() {
+		return getImagePlus(ROIMode.DO_NOT_LOAD);
+	}
 
 }

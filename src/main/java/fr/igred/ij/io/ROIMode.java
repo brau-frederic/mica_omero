@@ -14,20 +14,52 @@
  * this program; if not, write to the Free Software Foundation, Inc., 51 Franklin
  * Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
-package fr.igred.ij.macro;
+package fr.igred.ij.io;
 
 
-import java.util.EventListener;
+import loci.plugins.in.ImporterOptions;
 
 
 /**
- * Listens to batch runner thread.
+ * Modes used to load ROIs.
  */
-public interface BatchListener extends EventListener {
+public enum ROIMode {
+	/**
+	 * Do not load ROIs.
+	 */
+	DO_NOT_LOAD("No"),
+	/**
+	 * Load ROIs in the ROI Manager.
+	 */
+	MANAGER(ImporterOptions.ROIS_MODE_MANAGER),
+	/**
+	 * Load ROIs as overlay.
+	 */
+	OVERLAY(ImporterOptions.ROIS_MODE_OVERLAY);
 
 	/**
-	 * Action performed when thread is finished.
+	 * ROI mode String value for ImporterOptions and user selection.
 	 */
-	void onThreadFinished();
+	private final String value;
 
+
+	/**
+	 * Constructor of the ROIMode enum.
+	 *
+	 * @param value The ROI mode String value for ImporterOptions.
+	 */
+	ROIMode(String value) {
+		this.value = value;
+	}
+
+
+	/**
+	 * Returns the ROI mode String value for ImporterOptions.
+	 *
+	 * @return See above.
+	 */
+	@Override
+	public String toString() {
+		return value;
+	}
 }

@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2021-2022 MICA & GReD
+ *  Copyright (C) 2021-2023 MICA & GReD
  *
  * This program is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free Software
@@ -15,6 +15,7 @@
  * Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 package fr.igred.ij.gui;
+
 
 import fr.igred.omero.Client;
 import fr.igred.omero.exception.ServiceException;
@@ -39,18 +40,27 @@ import java.text.NumberFormat;
 
 import static javax.swing.JOptionPane.showMessageDialog;
 
+
 /**
  * Connection dialog for OMERO.
  */
 public class OMEROConnectDialog extends JDialog implements ActionListener {
 
+	/** The host field. */
 	private final JTextField hostField = new JTextField("");
+	/** The port field. */
 	private final JFormattedTextField portField = new JFormattedTextField(NumberFormat.getIntegerInstance());
+	/** The user field. */
 	private final JTextField userField = new JTextField("");
+	/** The password field. */
 	private final JPasswordField passwordField = new JPasswordField("");
+	/** The login button. */
 	private final JButton login = new JButton("Login");
+	/** The cancel button. */
 	private final JButton cancel = new JButton("Cancel");
+	/** The client. */
 	private transient Client client;
+	/** True if cancel was pressed. */
 	private boolean cancelled = false;
 
 
@@ -58,8 +68,6 @@ public class OMEROConnectDialog extends JDialog implements ActionListener {
 	 * Creates a new dialog to connect the specified client, but does not display it.
 	 */
 	public OMEROConnectDialog() {
-		super();
-
 		final int width = 350;
 		final int height = 200;
 

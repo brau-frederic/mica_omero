@@ -8,8 +8,8 @@ An ImageJ plugin to run a script on a batch of images from/to OMERO.
 
 1. Install the [OMERO.insight plugin](https://omero-guides.readthedocs.io/en/latest/fiji/docs/installation.html) (if you
    haven't already).
-2. Download the JAR file for this [library](https://github.com/GReD-Clermont/simple-omero-client/releases/tag/5.12.1/).
-3. Download the JAR file ([for this plugin](https://github.com/GReD-Clermont/omero_batch-plugin/releases/tag/1.0.5/)).
+2. Download the JAR file for this [library](https://github.com/GReD-Clermont/simple-omero-client/releases/tag/5.16.0/).
+3. Download the JAR file ([for this plugin](https://github.com/GReD-Clermont/omero_batch-plugin/releases/tag/2.0.0/)).
 4. Place these JAR files in your "plugins" folder.
 
 ## How to use

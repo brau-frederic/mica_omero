@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2021-2022 MICA & GReD
+ *  Copyright (C) 2021-2023 MICA & GReD
  *
  * This program is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free Software
@@ -16,8 +16,10 @@
  */
 package fr.igred.ij.macro;
 
+
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
 
 /**
  * Logs the progress of the batch process.
