@@ -19,6 +19,9 @@ package fr.igred.ij.io;
 
 import fr.igred.omero.repository.ImageWrapper;
 import ij.ImagePlus;
+import ij.gui.Overlay;
+import ij.gui.Roi;
+import ij.plugin.frame.RoiManager;
 import loci.formats.FileStitcher;
 import loci.formats.FormatException;
 import loci.plugins.BF;
@@ -32,6 +35,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 import java.util.logging.Logger;
 
 
@@ -179,6 +183,7 @@ public class LocalBatchImage implements BatchImage {
 			options.setShowROIs(loadROIs);
 			if (loadROIs) {
 				options.setROIsMode(mode.toString());
+				loadROIs(imp, RoiManager.getInstance2(), mode);
 			}
 			options.setId(path);
 			options.setSeriesOn(index, true);
@@ -188,6 +193,75 @@ public class LocalBatchImage implements BatchImage {
 			LOGGER.severe(e.getMessage());
 		}
 		return imp;
+	}
+
+
+	/**
+	 * Returns the path to the ROI next to the image file.
+	 *
+	 * @return See above.
+	 */
+	@SuppressWarnings("MagicCharacter")
+	private String getRoiPath() {
+		String beforeExt = path.substring(0, path.lastIndexOf('.'));
+		beforeExt = beforeExt.isEmpty() ? path : beforeExt;
+		if (beforeExt.toLowerCase(Locale.ROOT).endsWith(".ome") && beforeExt.lastIndexOf('.') > 0) {
+			beforeExt = beforeExt.substring(0, beforeExt.lastIndexOf('.'));
+		}
+
+		String imageIndex = index == null || index.equals(0) ? "" : "-" + index;
+
+		boolean roiExists;
+		String roiPath = beforeExt + imageIndex + ".roi";
+		File roiFile = new File(roiPath);
+		if (!roiFile.exists() || !roiFile.isFile()) {
+			roiPath = beforeExt + imageIndex + "_RoiSet.zip";
+			File zipFile = new File(roiPath);
+			roiExists = zipFile.exists() && zipFile.isFile();
+		} else {
+			roiExists = true;
+		}
+		return roiExists ? roiPath : "";
+	}
+
+
+	/**
+	 * Loads ROIs from an image in OMERO into ImageJ.
+	 *
+	 * @param imp     The image in ImageJ ROIs should be linked to.
+	 * @param manager The ROI Manager.
+	 * @param roiMode The mode used to load ROIs.
+	 */
+	private void loadROIs(ImagePlus imp, RoiManager manager, ROIMode roiMode) {
+		RoiManager rm = manager;
+		if (rm == null) {
+			rm = RoiManager.getRoiManager();
+		}
+
+		String roiPath = getRoiPath();
+		if (!roiPath.isEmpty() && roiMode != ROIMode.DO_NOT_LOAD) {
+			rm.open(roiPath);
+			Roi[] ijRois = rm.getRoisAsArray();
+			for (Roi ijRoi : ijRois) {
+				ijRoi.setImage(imp);
+			}
+			if (imp != null && roiMode == ROIMode.OVERLAY) {
+				Overlay overlay = imp.getOverlay();
+				for (Roi ijRoi : ijRois) {
+					overlay.add(ijRoi, ijRoi.getName());
+				}
+				rm.reset();
+			}
+		}
+	}
+
+
+	@Override
+	public String toString() {
+		return "LocalBatchImage{" +
+			   "path='" + path + "'" +
+			   ", index=" + index +
+			   "}";
 	}
 
 }

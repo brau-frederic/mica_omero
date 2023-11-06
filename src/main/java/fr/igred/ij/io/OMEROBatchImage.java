@@ -99,7 +99,7 @@ public class OMEROBatchImage implements BatchImage {
 			// Store image "annotate" permissions as a property in the ImagePlus object
 			imp.setProp("Annotatable", String.valueOf(imageWrapper.canAnnotate()));
 			if (mode != ROIMode.DO_NOT_LOAD) {
-				loadROIs(imp, mode);
+				loadROIs(imp, RoiManager.getInstance2(), mode);
 			}
 		} catch (ExecutionException | ServiceException | AccessException e) {
 			LOGGER.severe("Could not load image: " + e.getMessage());
@@ -109,14 +109,15 @@ public class OMEROBatchImage implements BatchImage {
 
 
 	/**
-	 * Loads ROIs from an image in OMERO into ImageJ.
+	 * Loads ROIs from an image in OMERO into ImageJ (removes previous ROIs).
 	 *
 	 * @param imp     The image in ImageJ ROIs should be linked to.
+	 * @param manager The ROI Manager.
 	 * @param roiMode The mode used to load ROIs.
 	 */
-	private void loadROIs(ImagePlus imp, ROIMode roiMode) {
+	private void loadROIs(ImagePlus imp, RoiManager manager, ROIMode roiMode) {
 		List<Roi> ijRois = new ArrayList<>(0);
-		RoiManager rm = RoiManager.getInstance2();
+		RoiManager rm = manager;
 		if (rm == null) {
 			rm = RoiManager.getRoiManager();
 		}
@@ -143,6 +144,15 @@ public class OMEROBatchImage implements BatchImage {
 				rm.addRoi(ijRoi);
 			}
 		}
+	}
+
+
+	@Override
+	public String toString() {
+		return "OMEROBatchImage{" +
+			   "client=" + client +
+			   ", imageWrapper=" + imageWrapper +
+			   "}";
 	}
 
 }
