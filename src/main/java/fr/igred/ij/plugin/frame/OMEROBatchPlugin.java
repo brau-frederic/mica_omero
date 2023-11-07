@@ -674,6 +674,7 @@ public class OMEROBatchPlugin extends PlugInFrame implements BatchListener {
 		}
 		try {
 			DatasetWrapper newDataset = project.addDataset(client, name, "");
+			project.reload(client);
 			id = newDataset.getId();
 		} catch (ExecutionException | ServiceException | AccessException exception) {
 			warningWindow("Could not create dataset: " + exception.getMessage());
